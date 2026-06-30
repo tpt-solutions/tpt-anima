@@ -1,0 +1,19 @@
+[package]
+name        = "anima-edge-gateway"
+description = "Edge Translation Gateway — INP ↔ MCP/A2A JSON bridge for TPT Anima"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+authors.workspace    = true
+repository.workspace = true
+
+[[bin]]
+name = "anima-edge-gateway"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace      = true
+serde_json.workspace = true
+tokio.workspace      = true
+thiserror.workspace  = true
+reqwest              = { version = "0.12", features = ["json"] }

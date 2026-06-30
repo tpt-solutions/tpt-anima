@@ -1,0 +1,855 @@
+TPT Anima: Cognitive Kernel (CK)
+Inference Scheduler - Foundational Rust Data Structure
+
+use std::collections::{HashMap, VecDeque, BinaryHeap};
+use std::cmp::Ordering;
+use std::time::{Duration, SystemTime, Instant};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+/// Unique identifier for an inference task
+pub type InferenceId = Uuid;
+
+/// Unique identifier for a thought bubble (sandboxed execution context)
+pub type BubbleId = Uuid;
+
+/// Unique identifier for an agent
+pub type AgentId = [u8; 32];
+
+/// Unique identifier for a memory node in SSE
+pub type MemoryId = [u8; 32];
+
+/// Hardware resource types
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum HardwareResource {
+    CPU,
+    GPU(u32),      // GPU index (for multi-GPU systems)
+    NPU,           // Neural Processing Unit
+    TPU,           // Tensor Processing Unit
+    VRAM(u32),     // GPU memory (per device)
+    RAM,           // System memory
+    NVMe,          // Fast storage (for paging)
+}
+
+/// Priority levels for inference scheduling
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum InferencePriority {
+    Critical = 0,  // System-critical, cannot be preempted
+    High = 1,      // User-facing, real-time
+    Normal = 2,    // Standard background tasks
+    Low = 3,       // Batch processing, can be deferred
+    Deferred = 4,  // Only runs when system is idle
+}
+
+impl PartialOrd for InferencePriority {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for InferencePriority {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (*self as u32).cmp(&(*other as u32))
+    }
+}
+
+/// Resource allocation request for an inference
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ResourceRequest {
+    /// CPU cores requested
+    pub cpu_cores: f32,
+    
+    /// GPU compute (in TFLOPS or percentage of device)
+    pub gpu_compute: HashMap<u32, f32>,
+    
+    /// VRAM required (in bytes)
+    pub vram_bytes: HashMap<u32, u64>,
+    
+    /// System RAM required (in bytes)
+    pub ram_bytes: u64,
+    
+    /// NVMe bandwidth for paging (bytes/sec)
+    pub nvme_bandwidth: u64,
+    
+    /// Whether this inference can be split across multiple devices
+    pub allow_sharding: bool,
+    
+    /// Preferred hardware (if any)
+    pub preferred_hardware: Option<HardwareResource>,
+}
+
+/// Thermal and power constraints
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThermalConstraints {
+    /// Maximum temperature threshold (Celsius)
+    pub max_temp_celsius: f32,
+    
+    /// Target temperature for optimal performance
+    pub target_temp_celsius: f32,
+    
+    /// Maximum power draw (watts)
+    pub max_power_watts: f32,
+    
+    /// Whether to throttle if thermal limits are approached
+    pub enable_throttling: bool,
+    
+    /// Thermal throttling curve (aggressive vs conservative)
+    pub throttling_aggressiveness: f32,
+}
+
+impl Default for ThermalConstraints {
+    fn default() -> Self {
+        Self {
+            max_temp_celsius: 95.0,
+            target_temp_celsius: 80.0,
+            max_power_watts: 300.0,
+            enable_throttling: true,
+            throttling_aggressiveness: 0.5,
+        }
+    }
+}
+
+/// KV Cache configuration for transformer models
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KVCacheConfig {
+    /// Maximum sequence length this cache can handle
+    pub max_sequence_length: u32,
+    
+    /// Number of attention heads
+    pub num_heads: u32,
+    
+    /// Dimension per head
+    pub head_dim: u32,
+    
+    /// Number of layers
+    pub num_layers: u32,
+    
+    /// Data type for cache (f16, bf16, f32, etc.)
+    pub dtype: String,
+    
+    /// Total memory footprint (calculated)
+    pub memory_footprint_bytes: u64,
+    
+    /// Whether to use paged attention (for long sequences)
+    pub use_paged_attention: bool,
+    
+    /// Page size for paged attention (in tokens)
+    pub page_size_tokens: u32,
+}
+
+impl KVCacheConfig {
+    /// Calculate memory footprint
+    pub fn calculate_footprint(&mut self) {
+        // KV cache = 2 (K and V) * num_layers * num_heads * head_dim * dtype_size * seq_len
+        let dtype_size = match self.dtype.as_str() {
+            "f16" | "bf16" => 2,
+            "f32" => 4,
+            "f8" | "i8" => 1,
+            _ => 2, // default to f16
+        };
+        
+        self.memory_footprint_bytes = 2 * self.num_layers as u64
+            * self.num_heads as u64
+            * self.head_dim as u64
+            * dtype_size as u64
+            * self.max_sequence_length as u64;
+    }
+}
+
+/// Cognitive Circuit Breaker configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CircuitBreakerConfig {
+    /// Maximum entropy threshold before triggering (tokens)
+    pub max_entropy_threshold: f32,
+    
+    /// Maximum consecutive identical outputs before loop detection
+    pub max_repetition_count: u32,
+    
+    /// Causal integrity threshold (0.0 to 1.0)
+    pub min_causal_integrity: f32,
+    
+    /// Whether to automatically rollback on circuit break
+    pub auto_rollback: bool,
+    
+    /// Maximum number of circuit breaks before killing the inference
+    pub max_circuit_breaks: u32,
+    
+    /// Cooldown period after circuit break (milliseconds)
+    pub cooldown_ms: u64,
+}
+
+impl Default for CircuitBreakerConfig {
+    fn default() -> Self {
+        Self {
+            max_entropy_threshold: 10.0,
+            max_repetition_count: 3,
+            min_causal_integrity: 0.7,
+            auto_rollback: true,
+            max_circuit_breaks: 5,
+            cooldown_ms: 1000,
+        }
+    }
+}
+
+/// The core Inference structure - a unit of AI computation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Inference {
+    /// Unique identifier
+    pub id: InferenceId,
+    
+    /// Agent that owns this inference
+    pub owner_agent_id: AgentId,
+    
+    /// Human-readable description (for observability)
+    pub description: String,
+    
+    /// Model identifier (e.g., "llama-3-70b", "gpt-4", "custom-model-v2")
+    pub model_id: String,
+    
+    /// Priority level
+    pub priority: InferencePriority,
+    
+    /// Resource requirements
+    pub resource_request: ResourceRequest,
+    
+    /// KV Cache configuration
+    pub kv_cache_config: KVCacheConfig,
+    
+    /// Circuit breaker configuration
+    pub circuit_breaker_config: CircuitBreakerConfig,
+    
+    /// Thermal constraints
+    pub thermal_constraints: ThermalConstraints,
+    
+    /// Memory IDs this inference needs access to (from SSE)
+    pub required_memory_ids: Vec<MemoryId>,
+    
+    /// Current state
+    pub state: InferenceState,
+    
+    /// Assigned thought bubble (if running)
+    pub assigned_bubble: Option<BubbleId>,
+    
+    /// Assigned hardware resources (if allocated)
+    pub allocated_resources: Option<AllocatedResources>,
+    
+    /// Creation timestamp
+    pub created_at: SystemTime,
+    
+    /// Deadline for completion (if any)
+    pub deadline: Option<SystemTime>,
+    
+    /// Estimated compute cost (in FLOPs)
+    pub estimated_flops: u64,
+    
+    /// Actual compute cost (tracked during execution)
+    pub actual_flops: u64,
+    
+    /// Number of tokens generated so far
+    pub tokens_generated: u32,
+    
+    /// Maximum tokens to generate
+    pub max_tokens: u32,
+    
+    /// Circuit break count (for safety)
+    pub circuit_break_count: u32,
+    
+    /// Whether this inference can be preempted by higher priority tasks
+    pub preemptible: bool,
+    
+    /// Checkpoint data for resumption (if preempted)
+    pub checkpoint: Option<InferenceCheckpoint>,
+}
+
+/// State machine for inference lifecycle
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum InferenceState {
+    /// Waiting in queue for resources
+    Queued,
+    
+    /// Resources allocated, ready to start
+    Ready,
+    
+    /// Currently executing
+    Running,
+    
+    /// Preempted by higher priority task (can resume)
+    Preempted,
+    
+    /// Paused due to thermal throttling
+    Throttled,
+    
+    /// Circuit breaker triggered, rolling back
+    CircuitBreaking,
+    
+    /// Completed successfully
+    Completed,
+    
+    /// Failed (error or circuit break limit exceeded)
+    Failed,
+    
+    /// Cancelled by owner
+    Cancelled,
+}
+
+/// Allocated hardware resources
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AllocatedResources {
+    /// CPU cores allocated
+    pub cpu_cores: f32,
+    
+    /// GPU compute allocated (per device)
+    pub gpu_compute: HashMap<u32, f32>,
+    
+    /// VRAM allocated (per device, in bytes)
+    pub vram_bytes: HashMap<u32, u64>,
+    
+    /// RAM allocated (in bytes)
+    pub ram_bytes: u64,
+    
+    /// NVMe bandwidth allocated (bytes/sec)
+    pub nvme_bandwidth: u64,
+    
+    /// Memory addresses for KV cache (for direct mapping)
+    pub kv_cache_addresses: HashMap<u32, u64>,
+}
+
+/// Checkpoint for resuming preempted inferences
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InferenceCheckpoint {
+    /// Token position where execution stopped
+    pub token_position: u32,
+    
+    /// KV cache state (serialized or memory address)
+    pub kv_cache_state: Vec<u8>,
+    
+    /// Model weights offset (for sharded models)
+    pub model_weights_offset: u64,
+    
+    /// Timestamp of checkpoint
+    pub checkpoint_time: SystemTime,
+    
+    /// Memory footprint of checkpoint (in bytes)
+    pub checkpoint_size_bytes: u64,
+}
+
+/// Thought Bubble - sandboxed execution context for an inference
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThoughtBubble {
+    /// Unique identifier
+    pub id: BubbleId,
+    
+    /// Inference running in this bubble
+    pub inference_id: InferenceId,
+    
+    /// Cryptographic isolation key (for fault isolation)
+    pub isolation_key: [u8; 32],
+    
+    /// Memory region allocated to this bubble
+    pub memory_region: MemoryRegion,
+    
+    /// Whether this bubble is currently active
+    pub is_active: bool,
+    
+    /// Creation timestamp
+    pub created_at: SystemTime,
+    
+    /// Last activity timestamp
+    pub last_activity: SystemTime,
+    
+    /// Circuit breaker state
+    pub circuit_breaker_state: CircuitBreakerState,
+}
+
+/// Memory region allocated to a thought bubble
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MemoryRegion {
+    /// Starting address
+    pub start_address: u64,
+    
+    /// Size in bytes
+    pub size_bytes: u64,
+    
+    /// Hardware device this region is on
+    pub device: HardwareResource,
+    
+    /// Whether this region is pageable (can be swapped to NVMe)
+    pub pageable: bool,
+    
+    /// Current page fault count (for monitoring)
+    pub page_faults: u64,
+}
+
+/// Circuit breaker state tracking
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CircuitBreakerState {
+    /// Current entropy level
+    pub current_entropy: f32,
+    
+    /// Consecutive identical outputs
+    pub repetition_count: u32,
+    
+    /// Last output hash (for loop detection)
+    pub last_output_hash: Option<[u8; 32]>,
+    
+    /// Causal integrity score
+    pub causal_integrity: f32,
+    
+    /// Number of circuit breaks triggered
+    pub break_count: u32,
+    
+    /// Last circuit break timestamp
+    pub last_break_time: Option<SystemTime>,
+}
+
+impl Default for CircuitBreakerState {
+    fn default() -> Self {
+        Self {
+            current_entropy: 0.0,
+            repetition_count: 0,
+            last_output_hash: None,
+            causal_integrity: 1.0,
+            break_count: 0,
+            last_break_time: None,
+        }
+    }
+}
+
+/// Hardware status and telemetry
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HardwareStatus {
+    /// Device identifier
+    pub device: HardwareResource,
+    
+    /// Current temperature (Celsius)
+    pub temperature_celsius: f32,
+    
+    /// Current power draw (watts)
+    pub power_watts: f32,
+    
+    /// Utilization percentage (0.0 to 1.0)
+    pub utilization: f32,
+    
+    /// Available memory (bytes)
+    pub available_memory_bytes: u64,
+    
+    /// Total memory (bytes)
+    pub total_memory_bytes: u64,
+    
+    /// Whether this device is currently throttled
+    pub is_throttled: bool,
+    
+    /// Last updated timestamp
+    pub last_updated: SystemTime,
+}
+
+/// The Inference Scheduler - the brain of the Cognitive Kernel
+#[derive(Clone, Debug)]
+pub struct InferenceScheduler {
+    /// Queue of pending inferences (priority-based)
+    pub pending_queue: BinaryHeap<SchedulableInference>,
+    
+ /// Currently running inferences
+    pub running_inferences: HashMap<InferenceId, Inference>,
+    
+    /// Active thought bubbles
+    pub active_bubbles: HashMap<BubbleId, ThoughtBubble>,
+    
+    /// Hardware status map
+    pub hardware_status: HashMap<HardwareResource, HardwareStatus>,
+    
+    /// Thermal constraints (system-wide)
+    pub system_thermal_constraints: ThermalConstraints,
+    
+    /// Total compute budget (FLOPs per second)
+    pub compute_budget_flops: u64,
+    
+    /// Current compute usage (FLOPs per second)
+    pub current_compute_usage: u64,
+    
+    /// Scheduler configuration
+    pub config: SchedulerConfig,
+    
+    /// Last scheduling decision timestamp
+    pub last_schedule_time: Instant,
+}
+
+/// Wrapper for priority queue ordering
+#[derive(Clone, Debug)]
+pub struct SchedulableInference {
+    pub inference: Inference,
+    pub priority_score: u32,
+}
+
+impl PartialEq for SchedulableInference {
+    fn eq(&self, other: &Self) -> bool {
+        self.priority_score == other.priority_score
+    }
+}
+
+impl Eq for SchedulableInference {}
+
+impl PartialOrd for SchedulableInference {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SchedulableInference {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Higher priority score = higher priority (reverse for BinaryHeap)
+        other.priority_score.cmp(&self.priority_score)
+    }
+}
+
+/// Scheduler configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SchedulerConfig {
+    /// Maximum concurrent inferences
+    pub max_concurrent_inferences: u32,
+    
+    /// Preemption threshold (priority difference to trigger preemption)
+    pub preemption_threshold: u32,
+    
+    /// Thermal throttling threshold (percentage of max temp)
+    pub thermal_throttle_threshold: f32,
+    
+    /// Predictive context loading (pre-fetch likely next memories)
+    pub enable_predictive_loading: bool,
+    
+    /// Predictive loading window (how far ahead to predict)
+    pub predictive_window_ms: u64,
+    
+    /// Checkpoint interval for long-running inferences (milliseconds)
+    pub checkpoint_interval_ms: u64,
+}
+
+impl Default for SchedulerConfig {
+    fn default() -> Self {
+        Self {
+            max_concurrent_inferences: 16,
+            preemption_threshold: 2,
+            thermal_throttle_threshold: 0.85,
+            enable_predictive_loading: true,
+            predictive_window_ms: 100,
+            checkpoint_interval_ms: 5000,
+        }
+    }
+}
+
+impl Inference {
+    /// Create a new inference
+    pub fn new(
+        owner_agent_id: AgentId,
+        description: String,
+        model_id: String,
+        priority: InferencePriority,
+        resource_request: ResourceRequest,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            owner_agent_id,
+            description,
+            model_id,
+            priority,
+            resource_request,
+            kv_cache_config: KVCacheConfig {
+                max_sequence_length: 4096,
+                num_heads: 32,
+                head_dim: 128,
+                num_layers: 32,
+                dtype: "f16".to_string(),
+                memory_footprint_bytes: 0,
+                use_paged_attention: true,
+                page_size_tokens: 16,
+            },
+            circuit_breaker_config: CircuitBreakerConfig::default(),
+            thermal_constraints: ThermalConstraints::default(),
+            required_memory_ids: Vec::new(),
+            state: InferenceState::Queued,
+            assigned_bubble: None,
+            allocated_resources: None,
+            created_at: SystemTime::now(),
+            deadline: None,
+            estimated_flops: 0,
+            actual_flops: 0,
+            tokens_generated: 0,
+            max_tokens: 2048,
+            circuit_break_count: 0,
+            preemptible: priority != InferencePriority::Critical,
+            checkpoint: None,
+        }
+    }
+    
+    /// Calculate priority score for scheduling
+    pub fn calculate_priority_score(&self) -> u32 {
+        let base_priority = match self.priority {
+            InferencePriority::Critical => 1000,
+            InferencePriority::High => 500,
+            InferencePriority::Normal => 100,
+            InferencePriority::Low => 50,
+            InferencePriority::Deferred => 10,
+        };
+        
+        // Add urgency factor if deadline exists
+        let urgency_factor = if let Some(deadline) = self.deadline {
+            let now = SystemTime::now();
+            if let Ok(time_left) = deadline.duration_since(now) {
+                let seconds_left = time_left.as_secs();
+                if seconds_left < 60 {
+                    500 // Very urgent
+                } else if seconds_left < 300 {
+                    200 // Urgent
+                } else {
+                    0
+                }
+            } else {
+                0 // Deadline already passed
+            }
+        } else {
+            0
+        };
+        
+        base_priority + urgency_factor
+    }
+}
+
+impl InferenceScheduler {
+    /// Create a new scheduler
+    pub fn new(compute_budget_flops: u64) -> Self {
+        Self {
+            pending_queue: BinaryHeap::new(),
+            running_inferences: HashMap::new(),
+            active_bubbles: HashMap::new(),
+            hardware_status: HashMap::new(),
+            system_thermal_constraints: ThermalConstraints::default(),
+            compute_budget_flops,
+            current_compute_usage: 0,
+            config: SchedulerConfig::default(),
+            last_schedule_time: Instant::now(),
+        }
+    }
+    
+    /// Submit a new inference for scheduling
+    pub fn submit_inference(&mut self, inference: Inference) {
+        let priority_score = inference.calculate_priority_score();
+        self.pending_queue.push(SchedulableInference {
+            inference,
+            priority_score,
+        });
+    }
+    
+    /// Schedule the next batch of inferences
+    pub fn schedule(&mut self) -> Vec<SchedulingDecision> {
+        let mut decisions = Vec::new();
+        
+        // Check thermal limits
+        let thermal_ok = self.check_thermal_limits();
+        
+        // Try to schedule pending inferences
+        while let Some(schedulable) = self.pending_queue.pop() {
+            if self.running_inferences.len() >= self.config.max_concurrent_inferences as usize {
+                self.pending_queue.push(schedulable);
+                break;
+            }
+            
+            if !thermal_ok && schedulable.inference.priority < InferencePriority::High {
+                self.pending_queue.push(schedulable);
+                continue;
+            }
+            
+            // Try to allocate resources
+            if let Some(allocated) = self.allocate_resources(&schedulable.inference) {
+                let mut inference = schedulable.inference;
+                inference.state = InferenceState::Running;
+                inference.allocated_resources = Some(allocated);
+                
+                // Create thought bubble
+                let bubble = self.create_thought_bubble(&inference);
+                inference.assigned_bubble = Some(bubble.id);
+                
+                self.active_bubbles.insert(bubble.id, bubble);
+                self.running_inferences.insert(inference.id, inference.clone());
+                
+                decisions.push(SchedulingDecision {
+                    inference_id: inference.id,
+                    action: SchedulingAction::StartExecution,
+                    bubble_id: Some(bubble.id),
+                    reason: "Resources available".to_string(),
+                });
+            } else {
+                // Cannot allocate, check for preemption
+                if schedulable.inference.preemptible {
+                    if let Some(preempted) = self.try_preemption(&schedulable.inference) {
+                        decisions.push(preempted);
+                    }
+                }
+                self.pending_queue.push(schedulable);
+                break;
+            }
+        }
+        
+        self.last_schedule_time = Instant::now();
+        decisions
+    }
+    
+    /// Check if thermal limits are OK
+    fn check_thermal_limits(&self) -> bool {
+        for (_, status) in &self.hardware_status {
+            if status.temperature_celsius > self.system_thermal_constraints.max_temp_celsius {
+                return false;
+            }
+        }
+        true
+    }
+    
+    /// Try to allocate resources for an inference
+    fn allocate_resources(&self, inference: &Inference) -> Option<AllocatedResources> {
+        // Simplified allocation logic
+        // In reality, this would check actual hardware availability
+        
+        let mut gpu_compute = HashMap::new();
+        let mut vram_bytes = HashMap::new();
+        
+        for (gpu_id, requested_compute) in &inference.resource_request.gpu_compute {
+            if let Some(status) = self.hardware_status.get(&HardwareResource::GPU(*gpu_id)) {
+                let available_compute = 1.0 - status.utilization;
+                if available_compute >= *requested_compute {
+                    gpu_compute.insert(*gpu_id, *requested_compute);
+                    vram_bytes.insert(*gpu_id, inference.resource_request.vram_bytes.get(gpu_id).copied().unwrap_or(0));
+                } else {
+                    return None; // Not enough resources
+                }
+            } else {
+                return None; // GPU not found
+            }
+        }
+        
+        Some(AllocatedResources {
+            cpu_cores: inference.resource_request.cpu_cores,
+            gpu_compute,
+            vram_bytes,
+            ram_bytes: inference.resource_request.ram_bytes,
+            nvme_bandwidth: inference.resource_request.nvme_bandwidth,
+            kv_cache_addresses: HashMap::new(),
+        })
+    }
+    
+    /// Create a thought bubble for an inference
+    fn create_thought_bubble(&self, inference: &Inference) -> ThoughtBubble {
+        ThoughtBubble {
+            id: Uuid::new_v4(),
+            inference_id: inference.id,
+            isolation_key: [0u8; 32], // Would be cryptographically generated
+            memory_region: MemoryRegion {
+                start_address: 0, // Would be allocated from memory manager
+                size_bytes: inference.kv_cache_config.memory_footprint_bytes,
+                device: HardwareResource::VRAM(0),
+                pageable: true,
+                page_faults: 0,
+            },
+            is_active: true,
+            created_at: SystemTime::now(),
+            last_activity: SystemTime::now(),
+            circuit_breaker_state: CircuitBreakerState::default(),
+        }
+    }
+    
+    /// Try to preempt a lower-priority inference
+    fn try_preemption(&mut self, high_priority: &Inference) -> Option<SchedulingDecision> {
+        // Find lowest priority running inference that can be preempted
+        let preemptable = self.running_inferences.values()
+            .filter(|inf| inf.preemptible && inf.priority > high_priority.priority)
+            .min_by_key(|inf| inf.calculate_priority_score());
+        
+        if let Some(to_preempt) = preemptable {
+            let preempted_id = to_preempt.id;
+            
+            // Create checkpoint
+            let checkpoint = InferenceCheckpoint {
+                token_position: to_preempt.tokens_generated,
+                kv_cache_state: Vec::new(), // Would serialize actual KV cache
+                model_weights_offset: 0,
+                checkpoint_time: SystemTime::now(),
+                checkpoint_size_bytes: 0,
+            };
+            
+            // Update state
+            if let Some(inf) = self.running_inferences.get_mut(&preempted_id) {
+                inf.state = InferenceState::Preempted;
+                inf.checkpoint = Some(checkpoint);
+                
+                // Remove thought bubble
+                if let Some(bubble_id) = inf.assigned_bubble {
+                    self.active_bubbles.remove(&bubble_id);
+                }
+            }
+            
+            return Some(SchedulingDecision {
+                inference_id: preempted_id,
+                action: SchedulingAction::Preempt,
+                bubble_id: None,
+                reason: format!("Preempted by higher priority inference {}", high_priority.id),
+            });
+        }
+        
+        None
+    }
+}
+
+/// Scheduling decision
+#[derive(Clone, Debug)]
+pub struct SchedulingDecision {
+    pub inference_id: InferenceId,
+    pub action: SchedulingAction,
+    pub bubble_id: Option<BubbleId>,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug)]
+pub enum SchedulingAction {
+    StartExecution,
+    Preempt,
+    Resume,
+    Throttle,
+    CircuitBreak,
+    Complete,
+    Fail,
+}
+
+Data Structure Explanation
+This Rust implementation defines the Cognitive Kernel's Inference Scheduler, which replaces traditional thread/process scheduling with AI-native "Thought Bubble" management.
+Core Components:
+Inference: A unit of AI computation (not a thread). Contains:
+Resource requirements (CPU, GPU, VRAM, RAM)
+KV Cache configuration for transformer models
+Circuit breaker settings for safety
+Thermal constraints
+Priority levels and preemption rules
+ThoughtBubble: A sandboxed execution context that isolates each inference. Provides:
+Cryptographic isolation (fault containment)
+Dedicated memory regions
+Circuit breaker state tracking
+Pageable memory (can swap to NVMe)
+InferenceScheduler: The brain that manages everything:
+Priority-based queue (Critical > High > Normal > Low > Deferred)
+Resource allocation across heterogeneous hardware (CPU/GPU/NPU/TPU)
+Thermal monitoring and throttling
+Preemption logic (higher priority can interrupt lower priority)
+Checkpointing for resumable inferences
+Circuit Breaker: Safety mechanism that monitors:
+Entropy levels (detects hallucination)
+Repetition loops (detects infinite loops)
+Causal integrity (ensures outputs make logical sense)
+Automatically rolls back or kills dangerous inferences
+Hardware Status: Real-time telemetry for every device:
+Temperature, power draw, utilization
+Available memory
+Throttling state
+Key Innovations:
+Inference-Based Scheduling: Instead of time-slicing threads, the scheduler allocates compute based on attention weights, KV cache pressure, and token generation deadlines.
+Unified Memory Fabric: VRAM, RAM, and NVMe are treated as a single addressable space. The scheduler can page KV cache in/out transparently.
+Predictive Context Loading: Pre-fetches likely next-token states and SSE memories before they're needed.
+Cognitive Circuit Breakers: Built-in safety that prevents hallucination loops and causal violations at the kernel level.
+Thermal Awareness: Dynamically allocates FLOPs based on temperature and power constraints, not just raw availability.
+This is the "brainstem" of TPT Anima—it's what makes the entire system feel alive and responsive while remaining safe and efficient.

@@ -1,0 +1,350 @@
+TPT Anima: Semantic State Engine (SSE) Memory Node
+Foundational Rust Data Structure
+use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
+use serde::{Deserialize, Serialize};
+
+/// Unique identifier for a memory node in the Semantic State Engine
+pub type MemoryId = [u8; 32];
+
+/// Unique identifier for an agent in the TPT Anima ecosystem
+pub type AgentId = [u8; 32];
+
+/// Vector embedding representation (dimension-agnostic)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VectorEmbedding {
+    /// The actual vector values (f32 for memory efficiency)
+    pub values: Vec<f32>,
+    /// Dimensionality of the vector (e.g., 768, 1536, 3072)
+    pub dimensions: u32,
+    /// Normalization flag (ensures unit vector for cosine similarity)
+    pub normalized: bool,
+}
+
+/// Causal link to another memory node
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CausalLink {
+    /// ID of the linked memory node
+    pub target_memory_id: MemoryId,
+    /// Type of causal relationship
+    pub relationship_type: CausalRelationship,
+    /// Strength of the causal link (0.0 to 1.0)
+    pub strength: f32,
+    /// Timestamp when this link was created
+    pub created_at: SystemTime,
+    /// Number of times this link has been traversed (affects strength decay)
+    pub traversal_count: u64,
+}
+
+/// Types of causal relationships between memories
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum CausalRelationship {
+    /// Memory A caused Memory B to exist
+    Caused,
+    /// Memory A occurred before Memory B (temporal sequence)
+    Preceded,
+    /// Memory A is a component/part of Memory B
+    PartOf,
+    /// Memory A is semantically similar to Memory B
+    SimilarTo,
+    /// Memory A contradicts Memory B
+    Contradicts,
+    /// Memory A is a summary/abstraction of Memory B
+    Abstracts,
+    /// Custom relationship type (extensible)
+    Custom(String),
+}
+
+/// Sensory modality of the memory
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum SensoryModality {
+    /// Text-based memory (documents, conversations, code)
+    Textual,
+    /// Visual memory (images, video frames, spatial data)
+    Visual,
+    /// Audio memory (speech, music, environmental sounds)
+    Audio,
+    /// Multi-modal memory (combines multiple sensory inputs)
+    MultiModal(Vec<SensoryModality>),
+    /// Abstract/conceptual memory (no direct sensory input)
+    Abstract,
+}
+
+/// Temporal decay configuration for this memory
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DecayProfile {
+    /// Base decay rate (how fast this memory fades without access)
+    /// Higher values = faster decay (e.g., 0.01 = 1% per hour)
+    pub base_decay_rate: f32,
+    /// Access reinforcement multiplier (each access slows decay)
+    /// e.g., 1.5 means each access multiplies remaining strength by 1.5
+    pub access_reinforcement: f32,
+    /// Maximum strength cap (prevents infinite reinforcement)
+    pub max_strength: f32,
+    /// Minimum strength threshold (below this, memory is pruned)
+    pub prune_threshold: f32,
+    /// Whether this memory is "pinned" (immune to decay)
+    /// Used for critical system memories or user-pinned items
+    pub pinned: bool,
+}
+
+/// Compute ledger entry for this memory
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ComputeLedgerEntry {
+    /// Cost to read/access this memory (in compute credits)
+    pub read_cost: f64,
+    /// Cost to write/update this memory (in compute credits)
+    pub write_cost: f64,
+    /// Total compute credits earned from this memory being accessed
+    pub total_earned: f64,
+    /// Total compute credits spent creating/maintaining this memory
+    pub total_spent: f64,
+    /// Agent ID that owns/created this memory (receives earnings)
+    pub owner_agent_id: AgentId,
+}
+
+/// Metadata about the creation and modification of this memory
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MemoryMetadata {
+    /// Timestamp when this memory was first created
+    pub created_at: SystemTime,
+    /// Timestamp when this memory was last accessed
+    pub last_accessed_at: SystemTime,
+    /// Timestamp when this memory was last modified
+    pub last_modified_at: SystemTime,
+    /// Number of times this memory has been accessed
+    pub access_count: u64,
+    /// Agent ID that created this memory
+    pub creator_agent_id: AgentId,
+    /// List of agent IDs that have accessed this memory
+    pub accessed_by_agents: Vec<AgentId>,
+    /// Optional human-readable label/tag
+    pub label: Option<String>,
+    /// Custom metadata key-value pairs (extensible)
+    pub custom_metadata: HashMap<String, String>,
+}
+
+/// The core Memory Node structure - the fundamental unit of the Semantic State Engine
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MemoryNode {
+    /// Unique identifier for this memory node
+    pub id: MemoryId,
+    
+    /// The vector embedding (semantic representation)
+    pub embedding: VectorEmbedding,
+    
+    /// Raw payload data (the actual content: text, image bytes, audio samples, etc.)
+    /// Stored as bytes to support any data type
+    pub payload: Vec<u8>,
+    
+    /// Payload format/mime type (e.g., "text/plain", "image/png", "application/json")
+    pub payload_format: String,
+    
+    /// Sensory modality of this memory
+    pub sensory_modality: SensoryModality,
+    
+    /// Causal links to other memory nodes
+    pub causal_links: Vec<CausalLink>,
+    
+    /// Current strength/weight of this memory (0.0 to 1.0)
+    /// Decays over time, reinforced by access
+    pub current_strength: f32,
+    
+    /// Temporal decay configuration
+    pub decay_profile: DecayProfile,
+    
+    /// Compute ledger integration
+    pub compute_ledger: ComputeLedgerEntry,
+    
+    /// Creation and access metadata
+    pub metadata: MemoryMetadata,
+    
+    /// Version number (for optimistic concurrency control)
+    pub version: u64,
+    
+    /// Checksum/hash of the payload (for integrity verification)
+    pub payload_hash: [u8; 32],
+}
+
+impl MemoryNode {
+    /// Create a new memory node with default decay profile
+    pub fn new(
+        id: MemoryId,
+        embedding: VectorEmbedding,
+        payload: Vec<u8>,
+        payload_format: String,
+        sensory_modality: SensoryModality,
+        creator_agent_id: AgentId,
+    ) -> Self {
+        let now = SystemTime::now();
+        
+        Self {
+            id,
+            embedding,
+            payload: payload.clone(),
+            payload_format,
+            sensory_modality,
+            causal_links: Vec::new(),
+            current_strength: 1.0,
+            decay_profile: DecayProfile::default(),
+            compute_ledger: ComputeLedgerEntry::new(creator_agent_id),
+            metadata: MemoryMetadata::new(now, creator_agent_id),
+            version: 1,
+            payload_hash: Self::compute_payload_hash(&payload),
+        }
+    }
+    
+    /// Record an access event (reinforces the memory, slows decay)
+    pub fn record_access(&mut self, agent_id: AgentId) {
+        self.metadata.access_count += 1;
+        self.metadata.last_accessed_at = SystemTime::now();
+        
+        if !self.metadata.accessed_by_agents.contains(&agent_id) {
+            self.metadata.accessed_by_agents.push(agent_id);
+        }
+        
+        // Reinforce strength (but cap at max)
+        self.current_strength *= self.decay_profile.access_reinforcement;
+        if self.current_strength > self.decay_profile.max_strength {
+            self.current_strength = self.decay_profile.max_strength;
+        }
+        
+        // Update compute ledger
+        self.compute_ledger.total_earned += self.compute_ledger.read_cost;
+    }
+    
+    /// Apply temporal decay based on elapsed time since last access
+    pub fn apply_decay(&mut self, elapsed: Duration) {
+        if self.decay_profile.pinned {
+            return; // Pinned memories don't decay
+        }
+        
+        let hours_elapsed = elapsed.as_secs_f32() / 3600.0;
+        let decay_factor = 1.0 - (self.decay_profile.base_decay_rate * hours_elapsed);
+        
+        self.current_strength *= decay_factor.max(0.0);
+    }
+    
+    /// Check if this memory should be pruned (strength below threshold)
+    pub fn should_prune(&self) -> bool {
+        !self.decay_profile.pinned && self.current_strength < self.decay_profile.prune_threshold
+    }
+    
+    /// Add a causal link to another memory
+    pub fn add_causal_link(&mut self, link: CausalLink) {
+        self.causal_links.push(link);
+    }
+    
+    /// Compute SHA-256 hash of the payload
+    fn compute_payload_hash(payload: &[u8]) -> [u8; 32] {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(payload);
+        let result = hasher.finalize();
+        let mut hash = [0u8; 32];
+        hash.copy_from_slice(&result);
+        hash
+    }
+}
+
+impl Default for DecayProfile {
+    fn default() -> Self {
+        Self {
+            base_decay_rate: 0.01,        // 1% decay per hour
+            access_reinforcement: 1.5,    // 50% strength boost per access
+            max_strength: 1.0,            // Cap at 100%
+            prune_threshold: 0.05,        // Prune below 5% strength
+            pinned: false,
+        }
+    }
+}
+
+impl VectorEmbedding {
+    /// Create a new vector embedding
+    pub fn new(values: Vec<f32>) -> Self {
+        let dimensions = values.len() as u32;
+        Self {
+            values,
+            dimensions,
+            normalized: false,
+        }
+    }
+    
+    /// Normalize the vector to unit length (for cosine similarity)
+    pub fn normalize(&mut self) {
+        let magnitude: f32 = self.values.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if magnitude > 0.0 {
+            self.values.iter_mut().for_each(|x| *x /= magnitude);
+            self.normalized = true;
+        }
+    }
+    
+    /// Compute cosine similarity with another vector
+    pub fn cosine_similarity(&self, other: &VectorEmbedding) -> f32 {
+        if self.dimensions != other.dimensions {
+            panic!("Vector dimensions must match for cosine similarity");
+        }
+        
+        let dot_product: f32 = self.values.iter()
+            .zip(other.values.iter())
+            .map(|(a, b)| a * b)
+            .sum();
+        
+        if self.normalized && other.normalized {
+            dot_product // Both are unit vectors, so magnitude is 1
+        } else {
+            let mag_a: f32 = self.values.iter().map(|x| x * x).sum::<f32>().sqrt();
+            let mag_b: f32 = other.values.iter().map(|x| x * x).sum::<f32>().sqrt();
+            dot_product / (mag_a * mag_b)
+        }
+    }
+}
+
+impl ComputeLedgerEntry {
+    /// Create a new compute ledger entry
+    pub fn new(owner_agent_id: AgentId) -> Self {
+        Self {
+            read_cost: 0.001,      // 0.001 compute credits to read
+            write_cost: 0.01,      // 0.01 compute credits to write
+            total_earned: 0.0,
+            total_spent: 0.0,
+            owner_agent_id,
+        }
+    }
+}
+
+impl MemoryMetadata {
+    /// Create new metadata
+    pub fn new(created_at: SystemTime, creator_agent_id: AgentId) -> Self {
+        Self {
+            created_at,
+            last_accessed_at: created_at,
+            last_modified_at: created_at,
+            access_count: 0,
+            creator_agent_id,
+            accessed_by_agents: Vec::new(),
+            label: None,
+            custom_metadata: HashMap::new(),
+        }
+    }
+}
+
+Data Structure Explanation
+This Rust implementation defines the MemoryNode as the fundamental unit of the Semantic State Engine. Here's what each component does:
+Core Components:
+VectorEmbedding: Stores the semantic representation as a normalized vector. Includes cosine similarity computation for finding related memories.
+CausalLink: Links this memory to other memories with typed relationships (caused, preceded, part-of, similar-to, etc.). Each link has a strength that can decay over time.
+SensoryModality: Tags the memory with its sensory type (textual, visual, audio, multi-modal, or abstract), enabling the Sensory Substrate integration.
+DecayProfile: Configures how this memory fades over time. Includes:
+Base decay rate (how fast it fades)
+Access reinforcement (how much each access slows decay)
+Prune threshold (when to delete it)
+Pinning (to protect critical memories)
+ComputeLedgerEntry: Tracks the micro-economics of this memory—who owns it, how much it costs to access, and how much revenue it generates.
+MemoryMetadata: Tracks creation, access, and modification history for auditing and analytics.
+Key Methods:
+record_access(): Called when an AI agent accesses this memory. Reinforces the strength and updates the compute ledger.
+apply_decay(): Called periodically to apply temporal decay based on elapsed time.
+should_prune(): Returns true if the memory's strength has fallen below the prune threshold.
+cosine_similarity(): Computes semantic similarity between two vectors for retrieval.
+This data structure is the foundation of TPT Anima's memory system. It combines vector search, causal reasoning, temporal dynamics, sensory ingestion, and micro-economics into a single, unified memory node.

@@ -1,0 +1,1158 @@
+TPT Anima: Zero-Knowledge Proof of Agency (ZKPA)
+Foundational Rust Data Structure
+
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::{Duration, SystemTime};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+/// Unique identifier for an agent
+pub type AgentId = [u8; 32];
+
+/// Unique identifier for a session
+pub type SessionId = Uuid;
+
+/// Unique identifier for a ZK proof
+pub type ProofId = Uuid;
+
+/// Unique identifier for a hardware enclave
+pub type EnclaveId = [u8; 32];
+
+/// Unique identifier for a policy
+pub type PolicyId = Uuid;
+
+/// Cryptographic commitment (e.g., Pedersen commitment)
+pub type Commitment = Vec<u8>;
+
+/// ZK proof bytes (SNARK/STARK serialized)
+pub type ZKProofBytes = Vec<u8>;
+
+/// Cryptographic witness (private inputs to a ZK circuit)
+pub type Witness = Vec<u8>;
+
+/// Verification key (public parameters for verifying proofs)
+pub type VerificationKey = Vec<u8>;
+
+/// Proving key (private parameters for generating proofs)
+pub type ProvingKey = Vec<u8>;
+
+/// Hardware enclave types supported by TPT Anima
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum EnclaveType {
+    /// Intel Trusted Platform Module
+    TPM2_0,
+    /// ARM TrustZone
+    TrustZone,
+    /// Intel Software Guard Extensions
+    IntelSGX,
+    /// AMD Secure Processor
+    AMDSecureProcessor,
+    /// NVIDIA GPU Confidential Computing (H100+)
+    NvidiaGPUCC,
+    /// Apple Secure Enclave
+    AppleSecureEnclave,
+    /// AWS Nitro Enclaves
+    AWSNitro,
+    /// Azure Confidential Computing
+    AzureConfidential,
+    /// Custom/simulated enclave (for development)
+    Simulated,
+}
+
+/// Hardware attestation evidence from a secure enclave
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HardwareAttestation {
+    /// Unique identifier for this attestation event
+    pub id: ProofId,
+    
+    /// Type of hardware enclave providing the attestation
+    pub enclave_type: EnclaveType,
+    
+    /// Unique identifier for this specific enclave instance
+    pub enclave_id: EnclaveId,
+    
+    /// Hardware manufacturer (e.g., "Intel", "ARM", "NVIDIA")
+    pub manufacturer: String,
+    
+    /// Hardware model identifier
+    pub model: String,
+    
+    /// Firmware/software version running in the enclave
+    pub firmware_version: String,
+    
+    /// Cryptographic measurement (hash) of the enclave's initial state
+    /// Proves the enclave is running approved, untampered code
+    pub initial_measurement: [u8; 32],
+    
+    /// Cryptographic measurement of the current enclave state
+    pub current_measurement: [u8; 32],
+    
+    /// Hardware-bound public key (generated inside the enclave)
+    pub enclave_public_key: Vec<u8>,
+    
+    /// Signature from the hardware manufacturer certifying this enclave
+    pub manufacturer_signature: Vec<u8>,
+    
+    /// Certificate chain from hardware root of trust
+    pub certificate_chain: Vec<Vec<u8>>,
+    
+    /// Timestamp when attestation was generated
+    pub attested_at: SystemTime,
+    
+    /// Nonce to prevent replay attacks
+    pub nonce: [u8; 32],
+    
+    /// Additional platform-specific evidence
+    pub platform_specific_evidence: HashMap<String, Vec<u8>>,
+}
+
+/// Security level of an agent's execution environment
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SecurityLevel {
+    /// Running in simulated/untrusted environment (dev only)
+    Untrusted = 0,
+    /// Running in standard OS process (no hardware isolation)
+    Standard = 1,
+    /// Running with software-based isolation (sandboxing)
+    Sandboxed = 2,
+    /// Running in hardware enclave (TPM, TrustZone, SGX)
+    HardwareEnclave = 3,
+    /// Running in confidential computing environment (GPU CC, Nitro)
+    ConfidentialCompute = 4,
+    /// Running on verified, audited silicon with full attestation
+    FullyVerified = 5,
+}
+
+/// The ephemeral identity of an agent for a specific session
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SessionCredential {
+    /// Unique session identifier
+    pub session_id: SessionId,
+    
+    /// Agent this credential belongs to
+    pub agent_id: AgentId,
+    
+    /// Security level of the execution environment
+    pub security_level: SecurityLevel,
+    
+    /// Hardware attestation backing this credential
+    pub hardware_attestation: Option<HardwareAttestation>,
+    
+    /// Ephemeral public key for this session (generated in enclave)
+    pub session_public_key: Vec<u8>,
+    
+    /// When this credential was issued
+    pub issued_at: SystemTime,
+    
+    /// When this credential expires (short-lived by design)
+    pub expires_at: SystemTime,
+    
+    /// Maximum compute credits this session can spend
+    pub compute_budget: f64,
+    
+    /// Compute credits spent so far
+    pub compute_spent: f64,
+    
+    /// Scope of authorization (what this agent is allowed to do)
+    pub authorization_scope: AuthorizationScope,
+    
+    /// Cryptographic signature from the issuing authority
+    pub issuer_signature: Vec<u8>,
+    
+    /// Whether this credential has been revoked
+    pub revoked: bool,
+    
+    /// Revocation timestamp (if revoked)
+    pub revoked_at: Option<SystemTime>,
+}
+
+/// What an agent is authorized to do in a session
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthorizationScope {
+    /// Memory IDs the agent can read
+    pub readable_memories: MemoryAccessPolicy,
+    
+    /// Memory IDs the agent can write
+    pub writable_memories: MemoryAccessPolicy,
+    
+    /// Intent action types the agent can invoke
+    pub allowed_actions: Vec<String>,
+    
+    /// Maximum intent cost per execution (compute credits)
+    pub max_intent_cost: f64,
+    
+    /// Geographic regions where this agent can operate
+    pub allowed_regions: Vec<String>,
+    
+    /// Compliance standards this agent must adhere to
+    pub compliance_requirements: Vec<String>,
+    
+    /// Whether this agent can delegate to child agents
+    pub can_delegate: bool,
+    
+    /// Maximum delegation depth (0 = no delegation)
+    pub max_delegation_depth: u32,
+    
+    /// Custom policy constraints (extensible)
+    pub custom_constraints: HashMap<String, serde_json::Value>,
+}
+
+/// Policy for memory access
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum MemoryAccessPolicy {
+    /// No access
+    None,
+    /// Access to specific memory IDs
+    Specific(Vec<[u8; 32]>),
+    /// Access to memories matching a tag pattern
+    ByTag(String),
+    /// Access to memories created by specific agents
+    ByCreator(Vec<AgentId>),
+    /// Access to all memories (root-level only)
+    All,
+}
+
+/// A ZK circuit definition (what computation is being proven)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ZKCircuit {
+    /// Unique identifier for this circuit
+    pub id: Uuid,
+    
+    /// Human-readable name (for observability)
+    pub name: String,
+    
+    /// Description of what this circuit proves
+    pub description: String,
+    
+    /// Type of ZK proof system used
+    pub proof_system: ProofSystem,
+    
+    /// Public inputs schema (what the verifier can see)
+    pub public_inputs_schema: serde_json::Value,
+    
+    /// Private inputs schema (what the prover keeps secret)
+    pub private_inputs_schema: serde_json::Value,
+    
+    /// Verification key (public, can be shared)
+    pub verification_key: VerificationKey,
+    
+    /// Proving key (private, kept secret by prover)
+    pub proving_key: Option<ProvingKey>,
+    
+    /// Circuit complexity metrics
+    pub complexity: CircuitComplexity,
+    
+    /// When this circuit was created
+    pub created_at: SystemTime,
+    
+    /// Version of the circuit
+    pub version: String,
+}
+
+/// ZK proof systems supported by TPT Anima
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ProofSystem {
+    /// Groth16 (fast verification, large proofs)
+    Groth16,
+    /// PLONK (universal setup, moderate proofs)
+    Plonk,
+    /// Halo2 (recursive, no trusted setup)
+    Halo2,
+    /// STARKs (transparent, large proofs, quantum-resistant)
+    Stark,
+    /// Nova (recursive SNARKs, efficient for repeated computation)
+    Nova,
+    /// Bulletproofs (no trusted setup, good for range proofs)
+    Bulletproofs,
+    /// Custom/proprietary system
+    Custom(String),
+}
+
+/// Complexity metrics for a ZK circuit
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CircuitComplexity {
+    /// Number of constraints in the circuit
+    pub constraint_count: u64,
+    
+    /// Estimated proving time (milliseconds)
+    pub estimated_proving_time_ms: u64,
+    
+    /// Estimated verification time (milliseconds)
+    pub estimated_verification_time_ms: u64,
+    
+    /// Proof size (bytes)
+    pub proof_size_bytes: u64,
+    
+    /// Memory required for proving (bytes)
+    pub proving_memory_bytes: u64,
+}
+
+/// A generated ZK proof
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ZKProof {
+    /// Unique identifier for this proof
+    pub id: ProofId,
+    
+    /// The circuit this proof is for
+    pub circuit_id: Uuid,
+    
+    /// The agent that generated this proof
+    pub prover_agent_id: AgentId,
+    
+    /// The session this proof is bound to
+    pub session_id: SessionId,
+    
+    /// The actual proof bytes
+    pub proof_bytes: ZKProofBytes,
+    
+    /// Public inputs (visible to verifier)
+    pub public_inputs: HashMap<String, serde_json::Value>,
+    
+    /// Commitment to private inputs (hides secrets)
+    pub private_input_commitment: Commitment,
+    
+    /// Proof generation timestamp
+    pub generated_at: SystemTime,
+    
+    /// Proof expiration (short-lived to prevent replay)
+    pub expires_at: SystemTime,
+    
+    /// Nonce to prevent replay attacks
+    pub nonce: [u8; 32],
+    
+    /// Type of proof (what it's proving)
+    pub proof_type: ProofType,
+    
+    /// Cryptographic binding to the hardware attestation
+    pub hardware_binding: Option<HardwareBinding>,
+}
+
+/// Types of proofs in the ZKPA system
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ProofType {
+    /// Proves the agent is running approved, untampered code
+    CodeIntegrity,
+    
+    /// Proves the agent is authorized to perform a specific action
+    Authorization,
+    
+    /// Proves the agent is operating within policy constraints
+    PolicyCompliance,
+    
+    /// Proves the agent is running on verified hardware
+    HardwareAttestation,
+    
+    /// Proves the agent is alive and untampered (liveness)
+    Liveness,
+    
+    /// Proves a computation was performed correctly without revealing inputs
+    ComputationCorrectness,
+    
+    /// Proves the agent has sufficient compute credits
+    BalanceProof,
+    
+    /// Proves delegation authority is valid
+    DelegationAuthority,
+    
+    /// Custom proof type
+    Custom(String),
+}
+
+/// Binding between a proof and hardware attestation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HardwareBinding {
+    /// The hardware attestation this proof is bound to
+    pub attestation_id: ProofId,
+    
+    /// Enclave ID where the proof was generated
+    pub enclave_id: EnclaveId,
+    
+    /// Measurement of the enclave state during proof generation
+    pub enclave_measurement: [u8; 32],
+    
+    /// Signature from the enclave binding the proof to the hardware
+    pub enclave_signature: Vec<u8>,
+}
+
+/// Delegation of authority from parent to child agent
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AuthorityDelegation {
+    /// Unique identifier for this delegation
+    pub id: Uuid,
+    
+    /// Parent agent delegating authority
+    pub parent_agent_id: AgentId,
+    
+    /// Child agent receiving authority
+    pub child_agent_id: AgentId,
+    
+    /// Session of the parent
+    pub parent_session_id: SessionId,
+    
+    /// Session issued to the child
+    pub child_session_id: SessionId,
+    
+    /// Scope of authority being delegated (must be subset of parent's scope)
+    pub delegated_scope: AuthorizationScope,
+    
+    /// Depth of this delegation in the chain (0 = direct from root)
+    pub delegation_depth: u32,
+    
+    /// Chain of delegation IDs (for verification)
+    pub delegation_chain: Vec<Uuid>,
+    
+    /// When this delegation was created
+    pub created_at: SystemTime,
+    
+    /// When this delegation expires
+    pub expires_at: SystemTime,
+    
+    /// Cryptographic signature from parent
+    pub parent_signature: Vec<u8>,
+    
+    /// ZK proof that delegation is valid (scope is subset of parent)
+    pub delegation_proof: ZKProof,
+    
+    /// Whether this delegation has been revoked
+    pub revoked: bool,
+    
+    /// Revocation timestamp
+    pub revoked_at: Option<SystemTime>,
+}
+
+/// Continuous liveness heartbeat from an agent
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LivenessHeartbeat {
+    /// Unique identifier for this heartbeat
+    pub id: ProofId,
+    
+    /// Agent sending the heartbeat
+    pub agent_id: AgentId,
+    
+    /// Session this heartbeat is for
+    pub session_id: SessionId,
+    
+    /// Sequence number (monotonically increasing, detects gaps)
+    pub sequence_number: u64,
+    
+    /// Current measurement of the agent's execution state
+    pub current_measurement: [u8; 32],
+    
+    /// Previous heartbeat hash (creates a chain)
+    pub previous_heartbeat_hash: Option<[u8; 32]>,
+    
+    /// Hash of this heartbeat (for chaining)
+    pub heartbeat_hash: [u8; 32],
+    
+    /// ZK proof that the agent is running untampered code
+    pub integrity_proof: ZKProof,
+    
+    /// Hardware attestation (refreshed periodically)
+    pub hardware_attestation: Option<HardwareAttestation>,
+    
+    /// Timestamp of this heartbeat
+    pub timestamp: SystemTime,
+    
+    /// Current compute usage (for monitoring)
+    pub compute_usage_flops: u64,
+    
+    /// Current memory usage (bytes)
+    pub memory_usage_bytes: u64,
+}
+
+/// Entry in the Agency Ledger (audit trail for the Observatory)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AgencyLedgerEntry {
+    /// Unique identifier for this ledger entry
+    pub id: Uuid,
+    
+    /// Type of event being logged
+    pub event_type: AgencyEventType,
+    
+    /// Agent involved in this event
+    pub agent_id: AgentId,
+    
+    /// Session involved (if applicable)
+    pub session_id: Option<SessionId>,
+    
+    /// Proof ID associated with this event (if applicable)
+    pub proof_id: Option<ProofId>,
+    
+    /// Timestamp of the event
+    pub timestamp: SystemTime,
+    
+    /// Security level at time of event
+    pub security_level: SecurityLevel,
+    
+    /// Hardware enclave involved (if applicable)
+    pub enclave_id: Option<EnclaveId>,
+    
+    /// Human-readable description (for observability)
+    pub description: String,
+    
+    /// Detailed event data (extensible)
+    pub details: HashMap<String, serde_json::Value>,
+    
+    /// Cryptographic hash of this entry (for tamper detection)
+    pub entry_hash: [u8; 32],
+    
+    /// Hash of previous entry (creates immutable chain)
+    pub previous_entry_hash: Option<[u8; 32]>,
+    
+    /// Signature from the system (proves entry is authentic)
+    pub system_signature: Vec<u8>,
+}
+
+/// Types of events logged in the Agency Ledger
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum AgencyEventType {
+    /// Agent session started
+    SessionStarted,
+    
+    /// Agent session ended
+    SessionEnded,
+    
+    /// Session credential issued
+    CredentialIssued,
+    
+    /// Session credential revoked
+    CredentialRevoked,
+    
+    /// Hardware attestation verified
+    AttestationVerified,
+    
+    /// Hardware attestation failed
+    AttestationFailed,
+    
+    /// Authorization proof verified
+    AuthorizationVerified,
+    
+    /// Authorization proof failed
+    AuthorizationFailed,
+    
+    /// Policy compliance proof verified
+    ComplianceVerified,
+    
+    /// Policy compliance proof failed
+    ComplianceFailed,
+    
+    /// Authority delegation created
+    DelegationCreated,
+    
+    /// Authority delegation revoked
+    DelegationRevoked,
+    
+    /// Liveness heartbeat received
+    HeartbeatReceived,
+    
+    /// Liveness heartbeat missed (agent may be compromised)
+    HeartbeatMissed,
+    
+    /// Memory access attempted
+    MemoryAccessAttempt,
+    
+    /// Memory access granted
+    MemoryAccessGranted,
+    
+    /// Memory access denied
+    MemoryAccessDenied,
+    
+    /// Intent execution attempted
+    IntentAttempted,
+    
+    /// Intent execution completed
+    IntentCompleted,
+    
+    /// Intent execution failed
+    IntentFailed,
+    
+    /// Security violation detected
+    SecurityViolation,
+    
+    /// Custom event
+    Custom(String),
+}
+
+/// The ZKPA Manager - orchestrates all zero-knowledge operations
+#[derive(Clone, Debug)]
+pub struct ZKPAManager {
+    /// Active sessions
+    pub active_sessions: HashMap<SessionId, SessionCredential>,
+    
+    /// Registered circuits
+    pub circuits: HashMap<Uuid, ZKCircuit>,
+    
+    /// Recent proofs (for verification)
+    pub recent_proofs: HashMap<ProofId, ZKProof>,
+    
+    /// Active delegations
+    pub active_delegations: HashMap<Uuid, AuthorityDelegation>,
+    
+    /// Agency ledger (audit trail)
+    pub agency_ledger: VecDeque<AgencyLedgerEntry>,
+    
+    /// Maximum ledger size (older entries archived)
+    pub max_ledger_size: usize,
+    
+    /// Heartbeat tracking (agent_id -> last heartbeat)
+    pub heartbeat_tracker: HashMap<AgentId, LivenessHeartbeat>,
+    
+    /// Revocation list (revoked session IDs)
+    pub revocation_list: HashSet<SessionId>,
+    
+    /// System-wide security policy
+    pub system_policy: SystemPolicy,
+    
+    /// Configuration
+    pub config: ZKPAConfig,
+}
+
+/// System-wide security policy
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SystemPolicy {
+    /// Minimum security level required for operations
+    pub min_security_level: SecurityLevel,
+    
+    /// Maximum session duration
+    pub max_session_duration: Duration,
+    
+    /// Heartbeat interval (how often agents must prove liveness)
+    pub heartbeat_interval: Duration,
+    
+    /// Maximum missed heartbeats before session termination
+    pub max_missed_heartbeats: u32,
+    
+    /// Maximum delegation depth
+    pub max_delegation_depth: u32,
+    
+    /// Whether to require hardware attestation for all sessions
+    pub require_hardware_attestation: bool,
+    
+    /// Whether to require liveness proofs for memory access
+    pub require_liveness_for_memory: bool,
+    
+    /// Compliance standards enforced system-wide
+    pub enforced_compliance: Vec<String>,
+}
+
+impl Default for SystemPolicy {
+    fn default() -> Self {
+        Self {
+            min_security_level: SecurityLevel::Sandboxed,
+            max_session_duration: Duration::from_secs(3600), // 1 hour
+            heartbeat_interval: Duration::from_secs(30),     // 30 seconds
+            max_missed_heartbeats: 3,
+            max_delegation_depth: 5,
+            require_hardware_attestation: true,
+            require_liveness_for_memory: true,
+            enforced_compliance: vec!["SOC2".to_string()],
+        }
+    }
+}
+
+/// ZKPA configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ZKPAConfig {
+    /// Default proof system to use
+    pub default_proof_system: ProofSystem,
+    
+    /// Maximum proof generation time (milliseconds)
+    pub max_proving_time_ms: u64,
+    
+    /// Maximum proof verification time (milliseconds)
+    pub max_verification_time_ms: u64,
+    
+    /// Whether to cache verification keys
+    pub cache_verification_keys: bool,
+    
+    /// Ledger retention period
+    pub ledger_retention: Duration,
+    
+    /// Whether to enable detailed audit logging
+    pub detailed_audit_logging: bool,
+}
+
+impl Default for ZKPAConfig {
+    fn default() -> Self {
+        Self {
+            default_proof_system: ProofSystem::Halo2,
+            max_proving_time_ms: 5000,
+            max_verification_time_ms: 100,
+            cache_verification_keys: true,
+            ledger_retention: Duration::from_secs(86400 * 30), // 30 days
+            detailed_audit_logging: true,
+        }
+    }
+}
+
+impl HardwareAttestation {
+    /// Verify the attestation is valid (checks signatures, measurements)
+    pub fn verify(&self) -> bool {
+        // In production, this would:
+        // 1. Verify the manufacturer signature
+        // 2. Validate the certificate chain
+        // 3. Check that measurements match expected values
+        // 4. Verify the nonce hasn't been used before
+        
+        // Simplified for this draft
+        !self.manufacturer_signature.is_empty() && !self.certificate_chain.is_empty()
+    }
+    
+    /// Check if this attestation has expired
+    pub fn is_expired(&self) -> bool {
+        let max_age = Duration::from_secs(300); // 5 minutes
+        SystemTime::now()
+            .duration_since(self.attested_at)
+            .map(|d| d > max_age)
+            .unwrap_or(true)
+    }
+}
+
+impl SessionCredential {
+    /// Create a new session credential
+    pub fn new(
+        agent_id: AgentId,
+        security_level: SecurityLevel,
+        hardware_attestation: Option<HardwareAttestation>,
+        authorization_scope: AuthorizationScope,
+        compute_budget: f64,
+        duration: Duration,
+    ) -> Self {
+        let now = SystemTime::now();
+        Self {
+            session_id: Uuid::new_v4(),
+            agent_id,
+            security_level,
+            hardware_attestation,
+            session_public_key: Vec::new(), // Would be generated in enclave
+            issued_at: now,
+            expires_at: now + duration,
+            compute_budget,
+            compute_spent: 0.0,
+            authorization_scope,
+            issuer_signature: Vec::new(), // Would be signed by authority
+            revoked: false,
+            revoked_at: None,
+        }
+    }
+    
+    /// Check if this credential is still valid
+    pub fn is_valid(&self) -> bool {
+        !self.revoked && SystemTime::now() < self.expires_at && self.compute_spent < self.compute_budget
+    }
+    
+    /// Check if an action is allowed by this credential's scope
+    pub fn allows_action(&self, action: &str) -> bool {
+        self.authorization_scope.allowed_actions.contains(&action.to_string())
+    }
+    
+    /// Record compute usage
+    pub fn record_compute_usage(&mut self, amount: f64) -> bool {
+        if self.compute_spent + amount > self.compute_budget {
+            return false;
+        }
+        self.compute_spent += amount;
+        true
+    }
+}
+
+impl ZKProof {
+    /// Verify this proof against a circuit and public inputs
+    pub fn verify(&self, circuit: &ZKCircuit) -> bool {
+        // In production, this would use the actual ZK verification algorithm
+        // For this draft, we do basic validation
+        
+        if self.expires_at < SystemTime::now() {
+            return false; // Proof expired
+        }
+        
+        if self.circuit_id != circuit.id {
+            return false; // Wrong circuit
+        }
+        
+        // Would call actual ZK verifier here
+        !self.proof_bytes.is_empty()
+    }
+    
+    /// Check if this proof is bound to specific hardware
+    pub fn is_hardware_bound(&self) -> bool {
+        self.hardware_binding.is_some()
+    }
+}
+
+impl AuthorityDelegation {
+    /// Create a new delegation
+    pub fn new(
+        parent_agent_id: AgentId,
+        child_agent_id: AgentId,
+        parent_session_id: SessionId,
+        child_session_id: SessionId,
+        delegated_scope: AuthorizationScope,
+        delegation_depth: u32,
+        delegation_chain: Vec<Uuid>,
+        duration: Duration,
+    ) -> Self {
+        let now = SystemTime::now();
+        Self {
+            id: Uuid::new_v4(),
+            parent_agent_id,
+            child_agent_id,
+            parent_session_id,
+            child_session_id,
+            delegated_scope,
+            delegation_depth,
+            delegation_chain,
+            created_at: now,
+            expires_at: now + duration,
+            parent_signature: Vec::new(),
+            delegation_proof: ZKProof {
+                id: Uuid::new_v4(),
+                circuit_id: Uuid::nil(),
+                prover_agent_id: parent_agent_id,
+                session_id: parent_session_id,
+                proof_bytes: Vec::new(),
+                public_inputs: HashMap::new(),
+                private_input_commitment: Vec::new(),
+                generated_at: now,
+                expires_at: now + duration,
+                nonce: [0u8; 32],
+                proof_type: ProofType::DelegationAuthority,
+                hardware_binding: None,
+            },
+            revoked: false,
+            revoked_at: None,
+        }
+    }
+    
+    /// Check if this delegation is still valid
+    pub fn is_valid(&self) -> bool {
+        !self.revoked && SystemTime::now() < self.expires_at
+    }
+}
+
+impl LivenessHeartbeat {
+    /// Create a new heartbeat
+    pub fn new(
+        agent_id: AgentId,
+        session_id: SessionId,
+        sequence_number: u64,
+        current_measurement: [u8; 32],
+        previous_heartbeat_hash: Option<[u8; 32]>,
+    ) -> Self {
+        let now = SystemTime::now();
+        let mut heartbeat = Self {
+            id: Uuid::new_v4(),
+            agent_id,
+            session_id,
+            sequence_number,
+            current_measurement,
+            previous_heartbeat_hash,
+            heartbeat_hash: [0u8; 32],
+            integrity_proof: ZKProof {
+                id: Uuid::new_v4(),
+                circuit_id: Uuid::nil(),
+                prover_agent_id: agent_id,
+                session_id,
+                proof_bytes: Vec::new(),
+                public_inputs: HashMap::new(),
+                private_input_commitment: Vec::new(),
+                generated_at: now,
+                expires_at: now + Duration::from_secs(60),
+                nonce: [0u8; 32],
+                proof_type: ProofType::Liveness,
+                hardware_binding: None,
+            },
+            hardware_attestation: None,
+            timestamp: now,
+            compute_usage_flops: 0,
+            memory_usage_bytes: 0,
+        };
+        
+        // Calculate heartbeat hash
+        heartbeat.heartbeat_hash = heartbeat.calculate_hash();
+        heartbeat
+    }
+    
+    /// Calculate the hash of this heartbeat (for chaining)
+    fn calculate_hash(&self) -> [u8; 32] {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(self.agent_id);
+        hasher.update(self.sequence_number.to_le_bytes());
+        hasher.update(self.current_measurement);
+        hasher.update(self.timestamp.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos().to_le_bytes());
+        let result = hasher.finalize();
+        let mut hash = [0u8; 32];
+        hash.copy_from_slice(&result);
+        hash
+    }
+    
+    /// Verify the chain integrity (previous hash matches)
+    pub fn verify_chain(&self, previous: &LivenessHeartbeat) -> bool {
+        self.previous_heartbeat_hash == Some(previous.heartbeat_hash)
+            && self.sequence_number == previous.sequence_number + 1
+    }
+}
+
+impl ZKPAManager {
+    /// Create a new ZKPA manager
+    pub fn new() -> Self {
+        Self {
+            active_sessions: HashMap::new(),
+            circuits: HashMap::new(),
+            recent_proofs: HashMap::new(),
+            active_delegations: HashMap::new(),
+            agency_ledger: VecDeque::new(),
+            max_ledger_size: 1_000_000,
+            heartbeat_tracker: HashMap::new(),
+            revocation_list: HashSet::new(),
+            system_policy: SystemPolicy::default(),
+            config: ZKPAConfig::default(),
+        }
+    }
+    
+    /// Start a new agent session
+    pub fn start_session(
+        &mut self,
+        agent_id: AgentId,
+        hardware_attestation: Option<HardwareAttestation>,
+        authorization_scope: AuthorizationScope,
+        compute_budget: f64,
+    ) -> Result<SessionCredential, ZKPAError> {
+        // Verify hardware attestation if required
+        if self.system_policy.require_hardware_attestation {
+            if let Some(attestation) = &hardware_attestation {
+                if !attestation.verify() {
+                    self.log_ledger_event(
+                        AgencyEventType::AttestationFailed,
+                        agent_id,
+                        None,
+                        None,
+                        "Hardware attestation verification failed".to_string(),
+                    );
+                    return Err(ZKPAError::AttestationFailed);
+                }
+            } else {
+                return Err(ZKPAError::AttestationRequired);
+            }
+        }
+        
+        // Determine security level
+        let security_level = if let Some(attestation) = &hardware_attestation {
+            match attestation.enclave_type {
+                EnclaveType::NvidiaGPUCC | EnclaveType::AWSNitro | EnclaveType::AzureConfidential => {
+                    SecurityLevel::ConfidentialCompute
+                }
+                EnclaveType::IntelSGX | EnclaveType::TrustZone | EnclaveType::TPM2_0 => {
+                    SecurityLevel::HardwareEnclave
+                }
+                _ => SecurityLevel::Sandboxed,
+            }
+        } else {
+            SecurityLevel::Sandboxed
+        };
+        
+        // Check minimum security level
+        if security_level < self.system_policy.min_security_level {
+            return Err(ZKPAError::InsufficientSecurityLevel);
+        }
+        
+        // Create session credential
+        let credential = SessionCredential::new(
+            agent_id,
+            security_level,
+            hardware_attestation,
+            authorization_scope,
+            compute_budget,
+            self.system_policy.max_session_duration,
+        );
+        
+        self.active_sessions.insert(credential.session_id, credential.clone());
+        
+        self.log_ledger_event(
+            AgencyEventType::SessionStarted,
+            agent_id,
+            Some(credential.session_id),
+            None,
+            format!("Session started with security level {:?}", security_level),
+        );
+        
+        Ok(credential)
+    }
+    
+    /// Revoke a session
+    pub fn revoke_session(&mut self, session_id: SessionId) -> Result<(), ZKPAError> {
+        if let Some(credential) = self.active_sessions.get_mut(&session_id) {
+            credential.revoked = true;
+            credential.revoked_at = Some(SystemTime::now());
+            self.revocation_list.insert(session_id);
+            
+            self.log_ledger_event(
+                AgencyEventType::CredentialRevoked,
+                credential.agent_id,
+                Some(session_id),
+                None,
+                "Session credential revoked".to_string(),
+            );
+            
+            Ok(())
+        } else {
+            Err(ZKPAError::SessionNotFound)
+        }
+    }
+    
+    /// Process a liveness heartbeat
+    pub fn process_heartbeat(&mut self, heartbeat: LivenessHeartbeat) -> Result<(), ZKPAError> {
+        // Verify session is still active
+        if !self.active_sessions.contains_key(&heartbeat.session_id) {
+            return Err(ZKPAError::SessionNotFound);
+        }
+        
+        // Verify chain integrity
+        if let Some(previous) = self.heartbeat_tracker.get(&heartbeat.agent_id) {
+            if !heartbeat.verify_chain(previous) {
+                self.log_ledger_event(
+                    AgencyEventType::SecurityViolation,
+                    heartbeat.agent_id,
+                    Some(heartbeat.session_id),
+                    Some(heartbeat.id),
+                    "Heartbeat chain integrity violation".to_string(),
+                );
+                return Err(ZKPAError::ChainIntegrityViolation);
+            }
+        }
+        
+        self.heartbeat_tracker.insert(heartbeat.agent_id, heartbeat.clone());
+        
+        self.log_ledger_event(
+            AgencyEventType::HeartbeatReceived,
+            heartbeat.agent_id,
+            Some(heartbeat.session_id),
+            Some(heartbeat.id),
+            format!("Heartbeat #{} received", heartbeat.sequence_number),
+        );
+        
+        Ok(())
+    }
+    
+    /// Check for missed heartbeats
+    pub fn check_missed_heartbeats(&mut self) -> Vec<AgentId> {
+        let mut missed_agents = Vec::new();
+        let timeout = self.system_policy.heartbeat_interval * self.system_policy.max_missed_heartbeats as u32;
+        
+        for (agent_id, heartbeat) in &self.heartbeat_tracker {
+            if let Ok(elapsed) = SystemTime::now().duration_since(heartbeat.timestamp) {
+                if elapsed > timeout {
+                    missed_agents.push(*agent_id);
+                    
+                    self.log_ledger_event(
+                        AgencyEventType::HeartbeatMissed,
+                        *agent_id,
+                        Some(heartbeat.session_id),
+                        None,
+                        format!("Agent missed {} heartbeats", self.system_policy.max_missed_heartbeats),
+                    );
+                }
+            }
+        }
+        
+        missed_agents
+    }
+    
+    /// Log an event to the agency ledger
+    fn log_ledger_event(
+        &mut self,
+        event_type: AgencyEventType,
+        agent_id: AgentId,
+        session_id: Option<SessionId>,
+        proof_id: Option<ProofId>,
+        description: String,
+    ) {
+        if !self.config.detailed_audit_logging {
+            return;
+        }
+        
+        let previous_hash = self.agency_ledger.back().map(|e| e.entry_hash);
+        
+        let mut entry = AgencyLedgerEntry {
+            id: Uuid::new_v4(),
+            event_type,
+            agent_id,
+            session_id,
+            proof_id,
+            timestamp: SystemTime::now(),
+            security_level: SecurityLevel::Standard,
+            enclave_id: None,
+            description,
+            details: HashMap::new(),
+            entry_hash: [0u8; 32],
+            previous_entry_hash: previous_hash,
+            system_signature: Vec::new(),
+        };
+        
+        // Calculate entry hash
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(entry.id.as_bytes());
+        hasher.update(entry.agent_id);
+        hasher.update(entry.timestamp.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos().to_le_bytes());
+        hasher.update(entry.description.as_bytes());
+        if let Some(prev) = previous_hash {
+            hasher.update(prev);
+        }
+        let result = hasher.finalize();
+        entry.entry_hash.copy_from_slice(&result);
+        
+        self.agency_ledger.push_back(entry);
+        
+        // Trim ledger if too large
+        while self.agency_ledger.len() > self.max_ledger_size {
+            self.agency_ledger.pop_front();
+        }
+    }
+}
+
+/// Errors in the ZKPA system
+#[derive(Clone, Debug)]
+pub enum ZKPAError {
+    AttestationFailed,
+    AttestationRequired,
+    InsufficientSecurityLevel,
+    SessionNotFound,
+    SessionExpired,
+    SessionRevoked,
+    ProofVerificationFailed,
+    ProofExpired,
+    ChainIntegrityViolation,
+    DelegationDepthExceeded,
+    InsufficientComputeBudget,
+    AuthorizationDenied,
+}
+
+Data Structure Explanation
+This Rust implementation defines the Zero-Knowledge Proof of Agency (ZKPA) system, which replaces legacy authentication (OAuth, API keys) with ephemeral, mathematically verifiable proofs of identity, authorization, and hardware integrity.
+Core Components:
+HardwareAttestation: Proof that an agent is running on verified, untampered silicon. Integrates with TPM, TrustZone, SGX, NVIDIA GPU CC, Apple Secure Enclave, AWS Nitro, and Azure Confidential Computing. Each attestation includes cryptographic measurements of the enclave state, manufacturer signatures, and certificate chains.
+SessionCredential: Ephemeral, time-limited identity for an agent. No long-lived secrets. Includes:
+Security level (Untrusted → FullyVerified)
+Hardware attestation binding
+Authorization scope (what the agent can do)
+Compute budget (micro-economy integration)
+Revocation support
+ZKCircuit & ZKProof: The actual zero-knowledge cryptography. Supports multiple proof systems (Groth16, PLONK, Halo2, STARKs, Nova, Bulletproofs). Proofs can demonstrate:
+Code integrity (running approved logic)
+Authorization (allowed to perform action)
+Policy compliance (operating within constraints)
+Liveness (alive and untampered)
+Computation correctness (without revealing inputs)
+AuthorityDelegation: Parent agents can spawn child agents with mathematically scoped permissions. The delegation chain is cryptographically verifiable, and revocation propagates instantly.
+LivenessHeartbeat: Continuous proof that an agent is running untampered code. Heartbeats form a hash chain (like a blockchain), so any gap or tampering is immediately detectable.
+AgencyLedger: Immutable audit trail for the Anima Observatory. Every authentication event, authorization decision, and security violation is logged with cryptographic chaining. Human auditors can verify the entire history.
+ZKPAManager: Orchestrates everything—session management, proof verification, heartbeat tracking, revocation, and ledger logging.
+Key Innovations:
+No Long-Lived Secrets: Every credential is ephemeral and time-limited. No passwords or API keys to steal.
+Hardware-Bound Identity: Proofs are cryptographically tied to specific hardware enclaves. You can't replay a proof from a different machine.
+Continuous Authentication: Not just one-time login—agents must continuously prove liveness and integrity.
+Delegated Authority with ZK Proofs: Parent agents can delegate to children, and the delegation is mathematically verifiable without revealing the parent's full authority.
+Immutable Audit Trail: The Agency Ledger provides cryptographic proof of every security decision, enabling compliance (SOC2, HIPAA, FedRAMP) without trusting a central authority.
+This is the "immune system" of TPT Anima—it ensures that only verified, authorized, untampered agents can operate in the system, and every action is cryptographically auditable.

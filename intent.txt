@@ -1,0 +1,728 @@
+TPT Anima: Intent & Negotiation Protocol (INP)
+Foundational Rust Data Structure
+
+use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+/// Unique identifier for an intent
+pub type IntentId = Uuid;
+
+/// Unique identifier for a negotiation session
+pub type SessionId = Uuid;
+
+/// Unique identifier for an agent
+pub type AgentId = [u8; 32];
+
+/// Unique identifier for a capability
+pub type CapabilityId = Uuid;
+
+/// Semantic version for capability contracts
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SemanticVersion {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+impl SemanticVersion {
+    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+        Self { major, minor, patch }
+    }
+    
+    /// Check if this version is compatible with another (same major version)
+    pub fn is_compatible_with(&self, other: &SemanticVersion) -> bool {
+        self.major == other.major && self.minor >= other.minor
+    }
+}
+
+/// Quality of Service constraints for an intent
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct QoSConstraints {
+    /// Maximum acceptable latency (in milliseconds)
+    pub max_latency_ms: Option<u64>,
+    
+    /// Minimum acceptable accuracy/confidence (0.0 to 1.0)
+    pub min_accuracy: Option<f32>,
+    
+    /// Maximum acceptable cost (in compute credits)
+    pub max_cost_credits: Option<f64>,
+    
+    /// Required compliance standards (e.g., "SOC2", "HIPAA", "GDPR")
+    pub compliance_requirements: Vec<String>,
+    
+    /// Preferred geographic region for data processing
+    pub preferred_region: Option<String>,
+    
+    /// Whether the intent can be processed asynchronously
+    pub allow_async: bool,
+    
+    /// Priority level (1 = highest, 10 = lowest)
+    pub priority: u8,
+    
+    /// Deadline for completion (absolute time)
+    pub deadline: Option<SystemTime>,
+}
+
+impl Default for QoSConstraints {
+    fn default() -> Self {
+        Self {
+            max_latency_ms: Some(5000),
+            min_accuracy: Some(0.8),
+            max_cost_credits: Some(100.0),
+            compliance_requirements: Vec::new(),
+            preferred_region: None,
+            allow_async: true,
+            priority: 5,
+            deadline: None,
+        }
+    }
+}
+
+/// Economic terms for an intent negotiation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EconomicTerms {
+    /// Maximum amount the requester is willing to pay (in compute credits)
+    pub max_payment: f64,
+    
+    /// Payment model
+    pub payment_model: PaymentModel,
+    
+    /// Currency type (e.g., "COMPUTE_CREDITS", "USD_STABLECOIN", "BTC")
+    pub currency: String,
+    
+    /// Payment timing
+    pub payment_timing: PaymentTiming,
+    
+    /// Escrow requirement (for high-value transactions)
+    pub require_escrow: bool,
+    
+    /// Bonus for early completion (percentage of payment)
+    pub early_completion_bonus: Option<f32>,
+    
+    /// Penalty for late completion (percentage of payment)
+    pub late_completion_penalty: Option<f32>,
+}
+
+/// Payment models for economic transactions
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PaymentModel {
+    /// Fixed price for the entire task
+    FixedPrice(f64),
+    
+    /// Pay per unit of work (e.g., per token, per MB, per API call)
+    PerUnit {
+        unit_type: String,
+        price_per_unit: f64,
+    },
+    
+    /// Auction/bidding model (agents bid, lowest wins)
+    Auction,
+    
+    /// Subscription/recurring payment
+    Subscription {
+        period: Duration,
+        amount_per_period: f64,
+    },
+    
+    /// Revenue sharing (percentage of generated value)
+    RevenueShare {
+        percentage: f32,
+    },
+}
+
+/// Payment timing options
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PaymentTiming {
+    /// Pay upfront before work begins
+    Upfront,
+    
+    /// Pay upon successful completion
+    OnCompletion,
+    
+    /// Pay in milestones
+    Milestones(Vec<MilestonePayment>),
+    
+    /// Streaming payments during execution
+    Streaming,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MilestonePayment {
+    pub milestone_name: String,
+    pub completion_percentage: f32,
+    pub payment_amount: f64,
+}
+
+/// The core Intent structure - what an agent wants to achieve
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Intent {
+    /// Unique identifier for this intent
+    pub id: IntentId,
+    
+    /// Agent ID of the requester
+    pub requester_agent_id: AgentId,
+    
+    /// Human-readable description of the goal (for observability)
+    pub description: String,
+    
+    /// Semantic action type (e.g., "data_analysis", "image_generation", "code_execution")
+    pub action_type: String,
+    
+    /// Input payload (the data to be processed)
+    pub input_payload: IntentPayload,
+    
+    /// Expected output format/schema
+    pub expected_output: OutputSpecification,
+    
+    /// Quality of Service constraints
+    pub qos: QoSConstraints,
+    
+    /// Economic terms
+    pub economic_terms: EconomicTerms,
+    
+    /// Fallback strategies if primary execution fails
+    pub fallback_strategies: Vec<FallbackStrategy>,
+    
+    /// Custom metadata (extensible)
+    pub metadata: HashMap<String, serde_json::Value>,
+    
+    /// Timestamp when this intent was created
+    pub created_at: SystemTime,
+    
+    /// Time-to-live (how long this intent remains valid)
+    pub ttl: Duration,
+    
+    /// Whether this intent requires cryptographic proof of execution
+    pub require_execution_proof: bool,
+    
+    /// Tags for routing and discovery
+    pub tags: Vec<String>,
+}
+
+/// Payload types for intent input
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum IntentPayload {
+    /// Direct data payload
+    Direct {
+        data: Vec<u8>,
+        content_type: String,
+    },
+    
+    /// Reference to data in the Semantic State Engine
+    MemoryReference {
+        memory_ids: Vec<[u8; 32]>,
+        access_pattern: AccessPattern,
+    },
+    
+    /// Streaming data source
+    Stream {
+        source_endpoint: String,
+        protocol: String,
+    },
+    
+    /// Computed/derived data (requires executing another intent first)
+    Computed {
+        dependency_intent_id: IntentId,
+        transformation: String,
+    },
+}
+
+/// How to access referenced memories
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum AccessPattern {
+    /// Load all referenced memories into context
+    Eager,
+    
+    /// Load memories on-demand as needed
+    Lazy,
+    
+    /// Only load memories that match certain criteria
+    Filtered {
+        filter_query: String,
+    },
+}
+
+/// Specification for expected output
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OutputSpecification {
+    /// Expected content type (e.g., "application/json", "image/png")
+    pub content_type: String,
+    
+    /// JSON schema for structured output (if applicable)
+    pub json_schema: Option<serde_json::Value>,
+    
+    /// Whether the output should be written to SSE
+    pub persist_to_memory: bool,
+    
+    /// Sensory modality of the output
+    pub sensory_modality: Option<String>,
+    
+    /// Expected size constraints
+    pub size_constraints: Option<SizeConstraints>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SizeConstraints {
+    pub min_bytes: Option<u64>,
+    pub max_bytes: Option<u64>,
+}
+
+/// Fallback strategy if primary execution fails
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FallbackStrategy {
+    /// Priority order (1 = first fallback to try)
+    pub priority: u32,
+    
+    /// Alternative action type
+    pub alternative_action: String,
+    
+    /// Relaxed QoS constraints for fallback
+    pub relaxed_qos: Option<QoSConstraints>,
+    
+    /// Maximum additional cost willing to pay for fallback
+    pub max_additional_cost: Option<f64>,
+    
+    /// Conditions that trigger this fallback
+    pub trigger_conditions: Vec<FallbackTrigger>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum FallbackTrigger {
+    /// Primary provider failed
+    ProviderFailure,
+    
+    /// Latency exceeded threshold
+    LatencyExceeded { threshold_ms: u64 },
+    
+    /// Accuracy below threshold
+    AccuracyBelowThreshold { threshold: f32 },
+    
+    /// Cost exceeded budget
+    CostExceeded { max_cost: f64 },
+    
+    /// Timeout
+    Timeout { duration: Duration },
+}
+
+/// Capability descriptor - what an agent can do
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Capability {
+    /// Unique identifier for this capability
+    pub id: CapabilityId,
+    
+    /// Agent ID that provides this capability
+    pub provider_agent_id: AgentId,
+    
+    /// Action types this capability can handle
+    pub supported_actions: Vec<String>,
+    
+    /// Semantic version of this capability
+    pub version: SemanticVersion,
+    
+    /// Human-readable description
+    pub description: String,
+    
+    /// Input schema this capability accepts
+    pub input_schema: serde_json::Value,
+    
+    /// Output schema this capability produces
+    pub output_schema: serde_json::Value,
+    
+    /// Performance characteristics
+    pub performance: CapabilityPerformance,
+    
+    /// Pricing model
+    pub pricing: CapabilityPricing,
+    
+    /// Compliance certifications
+    pub compliance_certifications: Vec<String>,
+    
+    /// Geographic regions where this capability is available
+    pub available_regions: Vec<String>,
+    
+    /// Current availability status
+    pub availability: AvailabilityStatus,
+    
+    /// Tags for discovery
+    pub tags: Vec<String>,
+    
+    /// Maximum concurrent executions
+    pub max_concurrency: u32,
+    
+    /// Current load (0.0 to 1.0)
+    pub current_load: f32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CapabilityPerformance {
+    /// Average latency in milliseconds
+    pub avg_latency_ms: u64,
+    
+    /// P99 latency in milliseconds
+    pub p99_latency_ms: u64,
+    
+    /// Average accuracy/confidence
+    pub avg_accuracy: f32,
+    
+    /// Throughput (requests per second)
+    pub throughput_rps: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CapabilityPricing {
+    /// Base cost per execution (in compute credits)
+    pub base_cost: f64,
+    
+    /// Cost per unit of input (e.g., per token, per MB)
+    pub input_cost_per_unit: Option<f64>,
+    
+    /// Cost per unit of output
+    pub output_cost_per_unit: Option<f64>,
+    
+    /// Volume discounts
+    pub volume_discounts: Vec<VolumeDiscount>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VolumeDiscount {
+    pub min_units: u64,
+    pub discount_percentage: f32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum AvailabilityStatus {
+    Available,
+    Degraded,
+    Unavailable,
+    Maintenance,
+}
+
+/// Negotiation session - tracks the state of an intent negotiation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NegotiationSession {
+    /// Unique session identifier
+    pub id: SessionId,
+    
+    /// The intent being negotiated
+    pub intent: Intent,
+    
+    /// Current state of the negotiation
+    pub state: NegotiationState,
+    
+    /// List of capability providers that have bid
+    pub bids: Vec<CapabilityBid>,
+    
+    /// Selected provider (if negotiation is complete)
+    pub selected_provider: Option<CapabilityBid>,
+    
+    /// Execution result (if completed)
+    pub execution_result: Option<ExecutionResult>,
+    
+    /// Timeline of negotiation events
+    pub events: Vec<NegotiationEvent>,
+    
+    /// Timestamp when negotiation started
+    pub started_at: SystemTime,
+    
+    /// Timestamp when negotiation completed (if applicable)
+    pub completed_at: Option<SystemTime>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum NegotiationState {
+    /// Intent has been broadcast, waiting for bids
+    Broadcasting,
+    
+    /// Bids are being collected
+    CollectingBids,
+    
+    /// Requester is evaluating bids
+    EvaluatingBids,
+    
+    /// Provider has been selected, execution in progress
+    Executing,
+    
+    /// Execution completed successfully
+    Completed,
+    
+    /// Execution failed, fallback in progress
+    FallbackInProgress,
+    
+    /// All attempts failed
+    Failed,
+    
+    /// Negotiation was cancelled
+    Cancelled,
+    
+    /// Negotiation timed out
+    TimedOut,
+}
+
+/// A bid from a capability provider
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CapabilityBid {
+    /// The capability being offered
+    pub capability: Capability,
+    
+    /// Proposed cost (in compute credits)
+    pub proposed_cost: f64,
+    
+    /// Estimated latency
+    pub estimated_latency_ms: u64,
+    
+    /// Estimated accuracy
+    pub estimated_accuracy: f32,
+    
+    /// Provider's confidence in completing the task
+    pub confidence: f32,
+    
+    /// Any special conditions or requirements
+    pub conditions: Vec<String>,
+    
+    /// Timestamp when bid was submitted
+    pub submitted_at: SystemTime,
+    
+    /// Validity duration of this bid
+    pub valid_for: Duration,
+}
+
+/// Timeline event in the negotiation process
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NegotiationEvent {
+    pub event_type: NegotiationEventType,
+    pub timestamp: SystemTime,
+    pub details: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NegotiationEventType {
+    IntentBroadcast,
+    BidReceived,
+    BidEvaluated,
+    ProviderSelected,
+    ExecutionStarted,
+    ExecutionProgress,
+    ExecutionCompleted,
+    ExecutionFailed,
+    FallbackTriggered,
+    NegotiationCancelled,
+    NegotiationTimedOut,
+}
+
+/// Result of intent execution
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExecutionResult {
+    /// Status of the execution
+    pub status: ExecutionStatus,
+    
+    /// Output payload
+    pub output: Option<IntentPayload>,
+    
+    /// Actual cost incurred (in compute credits)
+    pub actual_cost: f64,
+    
+    /// Actual latency (in milliseconds)
+    pub actual_latency_ms: u64,
+    
+    /// Actual accuracy achieved
+    pub actual_accuracy: Option<f32>,
+    
+    /// Cryptographic proof of execution (if required)
+    pub execution_proof: Option<Vec<u8>>,
+    
+    /// Memory IDs where output was persisted (if applicable)
+    pub persisted_memory_ids: Vec<[u8; 32]>,
+    
+    /// Error details (if failed)
+    pub error: Option<ExecutionError>,
+    
+    /// Timestamp when execution completed
+    pub completed_at: SystemTime,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ExecutionStatus {
+    Success,
+    PartialSuccess,
+    Failed,
+    Cancelled,
+    TimedOut,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExecutionError {
+    pub error_code: String,
+    pub error_message: String,
+    pub retryable: bool,
+    pub details: HashMap<String, serde_json::Value>,
+}
+
+impl Intent {
+    /// Create a new intent
+    pub fn new(
+        requester_agent_id: AgentId,
+        description: String,
+        action_type: String,
+        input_payload: IntentPayload,
+        expected_output: OutputSpecification,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            requester_agent_id,
+            description,
+            action_type,
+            input_payload,
+            expected_output,
+            qos: QoSConstraints::default(),
+            economic_terms: EconomicTerms {
+                max_payment: 100.0,
+                payment_model: PaymentModel::FixedPrice(50.0),
+                currency: "COMPUTE_CREDITS".to_string(),
+                payment_timing: PaymentTiming::OnCompletion,
+                require_escrow: false,
+                early_completion_bonus: None,
+                late_completion_penalty: None,
+            },
+            fallback_strategies: Vec::new(),
+            metadata: HashMap::new(),
+            created_at: SystemTime::now(),
+            ttl: Duration::from_secs(3600), // 1 hour default
+            require_execution_proof: false,
+            tags: Vec::new(),
+        }
+    }
+    
+    /// Check if this intent has expired
+    pub fn is_expired(&self) -> bool {
+        SystemTime::now()
+            .duration_since(self.created_at)
+            .map(|d| d > self.ttl)
+            .unwrap_or(true)
+    }
+    
+    /// Add a fallback strategy
+    pub fn with_fallback(mut self, fallback: FallbackStrategy) -> Self {
+        self.fallback_strategies.push(fallback);
+        self.fallback_strategies.sort_by_key(|f| f.priority);
+        self
+    }
+    
+    /// Set QoS constraints
+    pub fn with_qos(mut self, qos: QoSConstraints) -> Self {
+        self.qos = qos;
+        self
+    }
+    
+    /// Set economic terms
+    pub fn with_economic_terms(mut self, terms: EconomicTerms) -> Self {
+        self.economic_terms = terms;
+        self
+    }
+}
+
+impl NegotiationSession {
+    /// Create a new negotiation session
+    pub fn new(intent: Intent) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            intent,
+            state: NegotiationState::Broadcasting,
+            bids: Vec::new(),
+            selected_provider: None,
+            execution_result: None,
+            events: vec![NegotiationEvent {
+                event_type: NegotiationEventType::IntentBroadcast,
+                timestamp: SystemTime::now(),
+                details: HashMap::new(),
+            }],
+            started_at: SystemTime::now(),
+            completed_at: None,
+        }
+    }
+    
+    /// Add a bid to the session
+    pub fn add_bid(&mut self, bid: CapabilityBid) {
+        self.bids.push(bid);
+        self.state = NegotiationState::CollectingBids;
+        self.events.push(NegotiationEvent {
+            event_type: NegotiationEventType::BidReceived,
+            timestamp: SystemTime::now(),
+            details: HashMap::new(),
+        });
+    }
+    
+    /// Select a provider
+    pub fn select_provider(&mut self, bid: CapabilityBid) {
+        self.selected_provider = Some(bid);
+        self.state = NegotiationState::Executing;
+        self.events.push(NegotiationEvent {
+            event_type: NegotiationEventType::ProviderSelected,
+            timestamp: SystemTime::now(),
+            details: HashMap::new(),
+        });
+    }
+    
+    /// Complete the execution
+    pub fn complete_execution(&mut self, result: ExecutionResult) {
+        self.execution_result = Some(result);
+        self.state = NegotiationState::Completed;
+        self.completed_at = Some(SystemTime::now());
+        self.events.push(NegotiationEvent {
+            event_type: NegotiationEventType::ExecutionCompleted,
+            timestamp: SystemTime::now(),
+            details: HashMap::new(),
+        });
+    }
+    
+    /// Get the best bid based on cost and performance
+    pub fn get_best_bid(&self) -> Option<&CapabilityBid> {
+        self.bids.iter().min_by(|a, b| {
+            let score_a = a.proposed_cost / (a.estimated_accuracy as f64);
+            let score_b = b.proposed_cost / (b.estimated_accuracy as f64);
+            score_a.partial_cmp(&score_b).unwrap()
+        })
+    }
+}
+
+Data Structure Explanation
+This Rust implementation defines the complete Intent & Negotiation Protocol for TPT Anima. Here's what each component does:
+Core Components:
+Intent: The fundamental request from an agent. Contains:
+What the agent wants to achieve (action_type, description)
+Input data and expected output format
+QoS constraints (latency, accuracy, cost, compliance)
+Economic terms (how much they're willing to pay)
+Fallback strategies (what to do if primary execution fails)
+Capability: What an agent can do. Includes:
+Supported action types
+Performance metrics (latency, accuracy, throughput)
+Pricing model
+Compliance certifications
+Current availability and load
+NegotiationSession: Tracks the entire negotiation lifecycle:
+State machine (Broadcasting → CollectingBids → Executing → Completed)
+All bids received
+Selected provider
+Execution result
+Timeline of events
+EconomicTerms: Native micro-economy integration:
+Multiple payment models (fixed, per-unit, auction, subscription, revenue share)
+Payment timing (upfront, on completion, milestones, streaming)
+Escrow support for high-value transactions
+Bonuses and penalties
+QoSConstraints: Quality of service requirements:
+Latency, accuracy, cost limits
+Compliance requirements (SOC2, HIPAA, etc.)
+Geographic preferences
+Async/sync preferences
+Priority levels
+Key Features:
+Semantic Versioning: Capabilities use semantic versions, allowing backward-compatible updates without breaking existing integrations.
+Fallback Strategies: Intents can define multiple fallback strategies with different trigger conditions (provider failure, latency exceeded, cost exceeded, etc.).
+Compute Ledger Integration: Every transaction is tracked in compute credits, enabling the autonomous micro-economy.
+Cryptographic Proofs: Intents can require cryptographic proof of execution for auditability.
+Memory References: Input payloads can reference data in the Semantic State Engine, enabling direct memory attending instead of data serialization.
+Extensibility: All structures include metadata fields for custom extensions.
+This protocol replaces rigid REST APIs with fluid, goal-driven negotiation, enabling AI agents to autonomously discover, negotiate, and execute tasks across the TPT Anima ecosystem.
