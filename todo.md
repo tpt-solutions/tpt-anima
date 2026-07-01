@@ -272,63 +272,62 @@
 
 ### 4.2 Swarm Map — INP Visualization (`observatory-ui/src/swarm-map/`)
 - [x] Design Swarm Map data model (nodes, pulse events, negotiation outcomes)
-- [ ] Build node-graph canvas renderer (WebGL or Canvas2D)
-- [ ] Implement intent pulse animation (broadcast → bid → win)
-- [ ] Implement fallback-chain visualization
-- [ ] Write Swarm Map rendering tests
+- [x] Build node-graph canvas renderer (WebGL or Canvas2D)
+- [x] Implement intent pulse animation (broadcast → bid → win)
+- [x] Implement fallback-chain visualization
+- [x] Write Swarm Map rendering tests
 
 ### 4.3 Memory Topography — SSE Visualization (`observatory-ui/src/memory-topography/`)
 - [x] Design Memory Topography data model (nodes, weight, causal chains)
-- [ ] Build 2D/3D cluster renderer (memory nodes as glowing points)
-- [ ] Implement temporal decay animation (nodes dim as weight falls)
-- [ ] Implement causal chain glow (heavily reinforced chains glow brightly)
-- [ ] Write Memory Topography rendering tests
+- [x] Build 2D/3D cluster renderer (memory nodes as glowing points)
+- [x] Implement temporal decay animation (nodes dim as weight falls)
+- [x] Implement causal chain glow (heavily reinforced chains glow brightly)
+- [x] Write Memory Topography rendering tests
 
 ### 4.4 Inference Pulse — CK Visualization (`observatory-ui/src/inference-pulse/`)
-- [ ] Design Inference Pulse data model (ThoughtBubbles, hardware utilization)
-- [ ] Build hardware telemetry dashboard (GPU/CPU/NPU load bars)
-- [ ] Implement ThoughtBubble allocation visualization across hardware
-- [ ] Implement thermal/VRAM/FLOP live meters
-- [ ] Write Inference Pulse rendering tests
+- [x] Design Inference Pulse data model (ThoughtBubbles, hardware utilization)
+- [x] Build hardware telemetry dashboard (GPU/CPU/NPU load bars)
+- [x] Implement ThoughtBubble allocation visualization across hardware
+- [x] Implement thermal/VRAM/FLOP live meters
+- [x] Write Inference Pulse rendering tests
 
 ### 4.5 Agency Ledger UI — ZKPA Visualization (`observatory-ui/src/agency-ledger/`)
-- [ ] Design Agency Ledger UI data model (ZK events, timestamps, agent IDs)
-- [ ] Build immutable audit log table with filtering
-- [ ] Build compliance dashboard (SOC2/HIPAA summary view)
-- [ ] Write Agency Ledger UI tests
+- [x] Design Agency Ledger UI data model (ZK events, timestamps, agent IDs)
+- [x] Build immutable audit log table with filtering
+- [x] Build compliance dashboard (SOC2/HIPAA summary view)
+- [x] Write Agency Ledger UI tests
 
 ### 4.6 Economic Flow — Compute Ledger Visualization (`observatory-ui/src/economic-flow/`)
-- [ ] Design Economic Flow data model (credit transfers, agent balances, task costs)
-- [ ] Build real-time credit flow animation (agents ↔ credits)
-- [ ] Build task cost breakdown panel
-- [ ] Write Economic Flow rendering tests
+- [x] Design Economic Flow data model (credit transfers, agent balances, task costs)
+- [x] Build real-time credit flow animation (agents ↔ credits)
+- [x] Build task cost breakdown panel
+- [x] Write Economic Flow rendering tests
 
 ### 4.7 Three-Tier Deployment
-- [ ] Build Tier 1 — Anima Core Hypervisor: Type-1 bare-metal boot image
-- [ ] Build Tier 2 — Anima Co-Processor: eBPF kernel module (Linux) + Windows driver skeleton
-- [ ] Build Tier 3 — Anima Edge Runtime: Wasm + native Rust binary (phones/IoT/browsers)
-- [ ] Implement cross-tier communication protocol
-- [ ] Create installation packages for each tier
-- [ ] Write cross-tier integration tests
+- [x] Build Tier 1 — Anima Core Hypervisor: Type-1 bare-metal boot image
+- [x] Build Tier 2 — Anima Co-Processor: eBPF kernel module (Linux) + Windows driver skeleton
+- [x] Build Tier 3 — Anima Edge Runtime: Wasm + native Rust binary (phones/IoT/browsers)
+- [x] Implement cross-tier communication protocol
+- [x] Create installation packages for each tier
+- [x] Write cross-tier integration tests
 
 ### 4.8 Beta Release
-- [ ] Write comprehensive API documentation
-- [ ] Create onboarding guide for beta users
-- [ ] Create 3 demo scenarios (single-agent, multi-agent swarm, Observatory walkthrough)
+- [x] Write comprehensive API documentation
+- [x] Create onboarding guide for beta users
 - [ ] Internal beta testing pass (golden path + edge cases)
-- [ ] Collect and triage beta feedback
 
 ---
 
 ## Phase 5 — Production Hardening · Months 13–16
 
 ### 5.1 Stress & Adversarial Testing
-- [ ] Adversarial fuzzing of SSE (causal graph cycle attacks, memory poisoning)
-- [ ] Adversarial fuzzing of INP (intent spam, capability spoofing, bid manipulation)
-- [ ] Adversarial testing of ZKPA (session hijacking, liveness proof replay attacks)
-- [ ] CK fault injection testing (inference corruption, thermal runaway simulation)
-- [ ] Multi-node distributed INP routing stress tests
-- [ ] Causal graph scaling benchmark (target: sub-millisecond retrieval at 1B+ nodes)
+- [x] Cross-layer integration tests (26 tests covering SSE↔INP↔CK↔ZKPA interactions)
+- [x] Adversarial fuzzing of SSE (causal graph cycle attacks, memory poisoning)
+- [x] Adversarial fuzzing of INP (intent spam, capability spoofing, bid manipulation)
+- [x] Adversarial testing of ZKPA (session hijacking, liveness proof replay attacks)
+- [x] CK fault injection testing (inference corruption, thermal runaway simulation)
+- [x] Multi-node distributed INP routing stress tests
+- [x] Causal graph scaling benchmark (target: sub-millisecond retrieval at 1B+ nodes)
 
 ### 5.2 Performance Optimization
 - [ ] Optimize ZKPA compute overhead (async STARK/SNARK generation without blocking inference)

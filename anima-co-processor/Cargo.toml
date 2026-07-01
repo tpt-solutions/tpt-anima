@@ -1,0 +1,19 @@
+[package]
+name = "anima-co-processor"
+description = "Tier 2 Co-Processor — eBPF kernel module (Linux) + Windows driver for AI workload interception"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+anima-sse = { path = "../anima-sse" }
+anima-inp = { path = "../anima-inp" }
+anima-edge-runtime = { path = "../anima-edge-runtime" }

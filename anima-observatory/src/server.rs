@@ -1,12 +1,10 @@
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
-use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::accept_async;
+use tokio_tungstenite::tungstenite::Message;
 
-use crate::{
-    MemoryTopographyData, SwarmMapData, TelemetryCollector, TelemetryEvent,
-};
+use crate::{MemoryTopographyData, SwarmMapData, TelemetryCollector, TelemetryEvent};
 
 /// A message type that can be broadcast to WebSocket clients.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -108,9 +106,8 @@ impl TelemetryServer {
         });
 
         // Drop client when they disconnect
-        let recv_task = tokio::spawn(async move {
-            while let Some(Ok(_)) = ws_receiver.next().await {}
-        });
+        let recv_task =
+            tokio::spawn(async move { while let Some(Ok(_)) = ws_receiver.next().await {} });
 
         tokio::select! {
             _ = send_task => {},

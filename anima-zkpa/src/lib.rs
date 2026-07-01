@@ -5,6 +5,7 @@
 //! Phase 3 implementation lives in sub-modules added during Months 7–9.
 
 pub mod attestation;
+pub mod async_proofs;
 pub mod delegation;
 pub mod ledger;
 pub mod liveness;
@@ -13,6 +14,7 @@ pub mod proofs;
 pub mod session;
 pub mod types;
 
+pub use async_proofs::{AsyncProofGenerator, BatchProofGenerator, ProofCache, ProofData, ProofJob, ProofResult, ProofSubmitError};
 pub use attestation::AttestationService;
 pub use delegation::DelegationManager;
 pub use ledger::AgencyLedger;

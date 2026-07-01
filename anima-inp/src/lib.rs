@@ -4,6 +4,7 @@
 //! routes intents to the optimal provider with automatic fallback chains.
 
 pub mod broadcast;
+pub mod consensus;
 pub mod contracts;
 pub mod intent;
 pub mod ledger;
@@ -20,15 +21,16 @@ pub use intent::{
 };
 
 pub use broadcast::{BroadcastConfig, BroadcastError, BroadcastResult, IntentBroadcaster};
+pub use consensus::{ConsensusManager, ConsensusStats, EconomicStake, ProofOfWork, RateLimiter, ReputationManager};
 pub use contracts::{ContractError, ContractValidator, SemanticContract};
 pub use ledger::{ComputeCredits, ComputeLedger, ExternalRails, Transaction};
-pub use mcp::{
-    McpBidQueryTool, McpBroadcastTool, McpIntentResource, McpNegotiationResource,
-    McpResultRetrievalTool,
-};
 pub use manifest::{
     CapabilityManifest, ManifestCapability, ManifestError, ManifestParser, ManifestPerformance,
     ManifestPricing,
+};
+pub use mcp::{
+    McpBidQueryTool, McpBroadcastTool, McpIntentResource, McpNegotiationResource,
+    McpResultRetrievalTool,
 };
 pub use negotiation::{NegotiationManager, NegotiationSession, NegotiationState};
 pub use qos::{QoSAdjustment, QoSNegotiator, QoSProfile, QoSRecommender};

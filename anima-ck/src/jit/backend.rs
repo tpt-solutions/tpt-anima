@@ -237,8 +237,7 @@ mod tests {
 
     #[test]
     fn jit_error_is_std_error() {
-        let err: Box<dyn std::error::Error> =
-            Box::new(JitError::CompilationFailed("test".into()));
+        let err: Box<dyn std::error::Error> = Box::new(JitError::CompilationFailed("test".into()));
         assert!(err.to_string().contains("compilation failed"));
     }
 

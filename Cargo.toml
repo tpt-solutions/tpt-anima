@@ -7,7 +7,10 @@ members = [
     "anima-zkpa",
     "anima-observatory",
     "anima-edge-gateway",
+    "anima-edge-runtime",
     "anima-tests",
+    "anima-core-hypervisor",
+    "anima-co-processor",
 ]
 
 [workspace.package]

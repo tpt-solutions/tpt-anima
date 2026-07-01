@@ -70,10 +70,7 @@ pub enum ManifestPricing {
     #[serde(rename = "fixed")]
     FixedPrice { credits: f64 },
     #[serde(rename = "per_unit")]
-    PerUnit {
-        credits_per_unit: f64,
-        unit: String,
-    },
+    PerUnit { credits_per_unit: f64, unit: String },
     #[serde(rename = "auction")]
     Auction { max_budget: f64 },
 }
@@ -162,16 +159,15 @@ impl ManifestParser {
     ///
     /// Each manifest capability becomes one INP capability, all assigned to
     /// the given `provider_id`.
-    pub fn to_capabilities(
-        manifest: &CapabilityManifest,
-        provider_id: Uuid,
-    ) -> Vec<Capability> {
+    pub fn to_capabilities(manifest: &CapabilityManifest, provider_id: Uuid) -> Vec<Capability> {
         manifest
             .capabilities
             .iter()
             .map(|cap| {
                 let perf = PerformanceProfile {
-                    typical_latency: std::time::Duration::from_millis(cap.performance.typical_latency_ms),
+                    typical_latency: std::time::Duration::from_millis(
+                        cap.performance.typical_latency_ms,
+                    ),
                     max_latency: std::time::Duration::from_millis(cap.performance.max_latency_ms),
                     typical_accuracy: cap.performance.accuracy,
                     throughput_per_second: 1.0,
@@ -187,11 +183,9 @@ impl ManifestParser {
                         credits_per_unit: *credits_per_unit,
                         unit: unit.clone(),
                     },
-                    ManifestPricing::Auction { max_budget } => {
-                        EconomicTerms::Auction {
-                            max_budget: *max_budget,
-                        }
-                    }
+                    ManifestPricing::Auction { max_budget } => EconomicTerms::Auction {
+                        max_budget: *max_budget,
+                    },
                 };
                 Capability::new(vec![cap.action.clone()], perf, pricing, provider_id)
             })
@@ -259,32 +253,28 @@ mod tests {
 
     #[test]
     fn validate_rejects_empty_name() {
-        let mut manifest: CapabilityManifest =
-            serde_json::from_str(sample_manifest()).unwrap();
+        let mut manifest: CapabilityManifest = serde_json::from_str(sample_manifest()).unwrap();
         manifest.name = "".to_string();
         assert!(ManifestParser::validate(&manifest).is_err());
     }
 
     #[test]
     fn validate_rejects_empty_capabilities() {
-        let mut manifest: CapabilityManifest =
-            serde_json::from_str(sample_manifest()).unwrap();
+        let mut manifest: CapabilityManifest = serde_json::from_str(sample_manifest()).unwrap();
         manifest.capabilities.clear();
         assert!(ManifestParser::validate(&manifest).is_err());
     }
 
     #[test]
     fn validate_rejects_zero_typical_latency() {
-        let mut manifest: CapabilityManifest =
-            serde_json::from_str(sample_manifest()).unwrap();
+        let mut manifest: CapabilityManifest = serde_json::from_str(sample_manifest()).unwrap();
         manifest.capabilities[0].performance.typical_latency_ms = 0;
         assert!(ManifestParser::validate(&manifest).is_err());
     }
 
     #[test]
     fn validate_rejects_max_lt_typical() {
-        let mut manifest: CapabilityManifest =
-            serde_json::from_str(sample_manifest()).unwrap();
+        let mut manifest: CapabilityManifest = serde_json::from_str(sample_manifest()).unwrap();
         manifest.capabilities[0].performance.typical_latency_ms = 500;
         manifest.capabilities[0].performance.max_latency_ms = 100;
         assert!(ManifestParser::validate(&manifest).is_err());
@@ -292,18 +282,15 @@ mod tests {
 
     #[test]
     fn validate_rejects_out_of_range_accuracy() {
-        let mut manifest: CapabilityManifest =
-            serde_json::from_str(sample_manifest()).unwrap();
+        let mut manifest: CapabilityManifest = serde_json::from_str(sample_manifest()).unwrap();
         manifest.capabilities[0].performance.accuracy = 1.5;
         assert!(ManifestParser::validate(&manifest).is_err());
     }
 
     #[test]
     fn validate_rejects_negative_pricing() {
-        let mut manifest: CapabilityManifest =
-            serde_json::from_str(sample_manifest()).unwrap();
-        manifest.capabilities[0].pricing =
-            ManifestPricing::FixedPrice { credits: -5.0 };
+        let mut manifest: CapabilityManifest = serde_json::from_str(sample_manifest()).unwrap();
+        manifest.capabilities[0].pricing = ManifestPricing::FixedPrice { credits: -5.0 };
         assert!(ManifestParser::validate(&manifest).is_err());
     }
 

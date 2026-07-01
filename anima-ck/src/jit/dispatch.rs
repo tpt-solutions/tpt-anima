@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::backend::{Backend, CpuFallbackBackend, CudaBackend, JitError, AnEBackend, RocmBackend};
+use super::backend::{AnEBackend, Backend, CpuFallbackBackend, CudaBackend, JitError, RocmBackend};
 use super::detection::{HardwareInfo, HardwarePlatform};
 
 /// Central dispatcher that holds registered backends and routes inferences.
@@ -117,7 +117,10 @@ mod tests {
         let d = make_dispatcher();
         let result = d.dispatch(HardwarePlatform::NVIDIACuda, "test");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), JitError::BackendUnavailable(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            JitError::BackendUnavailable(_)
+        ));
     }
 
     #[test]
@@ -154,7 +157,10 @@ mod tests {
         let d = make_dispatcher();
         let result = d.dispatch(HardwarePlatform::ArmNeon, "test");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), JitError::BackendUnavailable(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            JitError::BackendUnavailable(_)
+        ));
     }
 
     #[test]

@@ -7,8 +7,12 @@
 pub mod budgeting;
 pub mod circuit_breaker;
 pub mod jit;
+pub mod kv_swap_optimization;
 pub mod mcp;
 pub mod memory_fabric;
 pub mod scheduler;
 pub mod thought_bubble;
 pub mod types;
+
+pub use budgeting::{BudgetManager, ComputeBudget, ComputeUnit, ThermalStatus};
+pub use kv_swap_optimization::{ContextBuffer, KVCacheOptimizer, SwapPlan, SwapStatistics, SwapStrategy, SwapOperation, SwapPriority};

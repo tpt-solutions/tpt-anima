@@ -1,0 +1,359 @@
+/* === Observatory Layout === */
+.observatory {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 16px 24px;
+}
+
+/* --- Header --- */
+.observatory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.observatory-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* --- Grid --- */
+.observatory-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  flex: 1;
+}
+
+.grid-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 1024px) {
+  .observatory-grid {
+    grid-template-columns: 1fr;
+  }
+  .grid-span-2 {
+    grid-column: span 1;
+  }
+}
+
+/* --- Panel Card --- */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+/* --- Status Bar --- */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-connected .status-dot {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.status-disconnected .status-dot {
+  background: var(--red);
+}
+
+.status-item {
+  color: var(--text-muted);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* --- Swarm Map --- */
+.swarm-canvas {
+  width: 100%;
+  flex: 1;
+  border-radius: 8px;
+  display: block;
+}
+
+.swarm-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* --- Memory Topography --- */
+.topo-canvas {
+  width: 100%;
+  flex: 1;
+  border-radius: 8px;
+  display: block;
+}
+
+/* --- Inference Pulse --- */
+.pulse-canvas {
+  width: 100%;
+  flex: 1;
+  border-radius: 8px;
+  display: block;
+}
+
+/* --- Agency Ledger Compliance Dashboard --- */
+.compliance-toggle {
+  margin-left: auto;
+  background: #1a1a2e;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.compliance-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.compliance-dashboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.compliance-section {
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.compliance-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.compliance-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.compliance-label {
+  width: 160px;
+  min-width: 160px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compliance-track {
+  flex: 1;
+  height: 10px;
+  background: #0a0a0f;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.compliance-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.6s ease;
+}
+
+.compliance-score {
+  width: 36px;
+  text-align: right;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.compliance-summary {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compliance-stat {
+  flex: 1;
+  min-width: 80px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.compliance-stat-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.compliance-stat-label {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* --- Agency Ledger --- */
+.ledger-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ledger-filter-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ledger-filter {
+  background: #1a1a2e;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+}
+
+.ledger-filter:focus {
+  border-color: var(--accent);
+}
+
+.ledger-scroll {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.ledger-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
+}
+
+.ledger-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #1a1a2a;
+  color: var(--text-secondary);
+}
+
+.ledger-time {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ledger-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.ledger-agent {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ledger-details {
+  color: var(--text-muted);
+}
+
+/* --- Economic Flow --- */
+.econ-canvas {
+  width: 100%;
+  flex: 1;
+  border-radius: 8px;
+  display: block;
+}

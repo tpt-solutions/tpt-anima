@@ -7,6 +7,6 @@ pub mod backend;
 pub mod detection;
 pub mod dispatch;
 
-pub use backend::{Backend, CudaBackend, CpuFallbackBackend, JitError, RocmBackend, AnEBackend};
+pub use backend::{AnEBackend, Backend, CpuFallbackBackend, CudaBackend, JitError, RocmBackend};
 pub use detection::{detect_hardware, HardwareDetector, HardwareInfo, HardwarePlatform};
 pub use dispatch::JitDispatcher;
