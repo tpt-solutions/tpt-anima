@@ -114,45 +114,64 @@ anima-sse = "0.1"
 anima-inp = "0.1"
 anima-ck = "0.1"
 anima-zkpa = "0.1"
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
 ```
 
 ### Example: Creating an AI Agent
 
+Note: SSE's `AgentId`/`MemoryId` are raw `[u8; 32]`, while INP's and ZKPA's `AgentId` is a `Uuid` — this is intentional per-crate type isolation (see `CLAUDE.md`), not an oversight, so the two id kinds below are deliberately separate values.
+
 ```rust
 use anima_sse::{MemoryNode, VectorEmbedding, SensoryModality};
-use anima_inp::{Intent, Capability, CapabilityRegistry};
+use anima_inp::{
+    Intent, Capability, CapabilityRegistry, QoSConstraints, EconomicTerms, PerformanceProfile,
+};
 use anima_zkpa::session::SessionManager;
+use std::time::Duration;
+use uuid::Uuid;
+
+// INP and ZKPA agent identity (Uuid-based)
+let agent_id: Uuid = Uuid::new_v4();
 
 // 1. Create a ZKPA session (ephemeral identity)
-let mut sessions = SessionManager::new();
+let mut sessions = SessionManager::default();
 let session = sessions.create_session(
     agent_id,
     "my-agent-task".to_string(),
     1000.0, // Compute budget
-    std::time::Duration::from_secs(3600), // 1 hour TTL
-    None,
-)?;
+    Duration::from_secs(3600), // 1 hour TTL
+    None, // no hardware attestation binding
+);
 
-// 2. Store a memory in SSE
+// 2. Store a memory in SSE (uses SSE's own [u8; 32] id space)
+let node_id: anima_sse::MemoryId = rand::random();
+let sse_agent_id: anima_sse::AgentId = rand::random();
 let memory = MemoryNode::new(
     node_id,
     VectorEmbedding::new(vec![0.5, 0.3, 0.2]),
     b"Important knowledge".to_vec(),
     "text/plain".to_string(),
     SensoryModality::Textual,
-    agent_id,
+    sse_agent_id,
 );
 
-// 3. Register capabilities with INP
+// 3. Register a capability with INP
 let mut registry = CapabilityRegistry::new();
 registry.register(Capability::new(
     vec!["analyze".to_string()],
-    PerformanceProfile::default(),
-    EconomicTerms::PerUnit { credits_per_unit: 0.05 },
+    PerformanceProfile {
+        typical_latency: Duration::from_millis(200),
+        max_latency: Duration::from_secs(1),
+        typical_accuracy: 0.95,
+        throughput_per_second: 10.0,
+    },
+    EconomicTerms::PerUnit { credits_per_unit: 0.05, unit: "token".to_string() },
     agent_id,
 ));
 
-// 4. Broadcast an intent
+// 4. Describe an intent to negotiate over (see docs/API.md for the full
+// negotiation flow: BroadcastEngine::start_negotiation -> submit_bid -> finalize_and_select)
 let intent = Intent::new(
     "analyze".to_string(),
     serde_json::json!({"data": "input"}),

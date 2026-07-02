@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# Anima Observatory UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This is the GUI for [TPT Anima](../README.md) — a React + TypeScript + Vite dashboard that visualizes what the four layers (SSE, INP, CK, ZKPA) are doing in real time. It connects over WebSocket to the `anima-observatory` Rust crate, which aggregates telemetry from the rest of the workspace.
 
-Currently, two official plugins are available:
+Panels: **Swarm Map** (INP intent/negotiation flow), **Memory Topography** (SSE nodes and decay), **Inference Pulse** (CK hardware scheduling), **Agency Ledger** (ZKPA audit log), **Economic Flow** (compute-credit transfers). See the root [README's Observatory section](../README.md#the-anima-observatory) for what each panel means.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Running locally
 
-## React Compiler
+```bash
+# Terminal 1: start the telemetry backend
+cd ../anima-observatory
+cargo run
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Terminal 2: start this UI
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Then open `http://localhost:5173`.
+
+## Other commands
+
+```bash
+npm test          # run the test suite once (Vitest)
+npm run test:watch  # run tests in watch mode
+npm run build      # type-check (tsc -b) and produce a production build
+npm run lint        # oxlint
+```

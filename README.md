@@ -9,6 +9,31 @@ Anima natively implements the [Model Context Protocol (MCP)](https://github.com/
 
 ---
 
+## Getting Started
+
+**Is there a GUI?** Yes — the **Anima Observatory** (see below), a real-time dashboard that visualizes what the four layers are doing.
+
+The fastest way to see Anima in action:
+
+```bash
+# Terminal 1: start the Observatory telemetry backend
+cd anima-observatory
+cargo run
+
+# Terminal 2: start the Observatory UI
+cd observatory-ui
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5173`. No agents to configure — the demo backend emits sample telemetry across all five panels.
+
+To build and test the rest of the workspace: `cargo build --workspace` / `cargo test --workspace`.
+
+For the full walkthrough — deployment tiers, embedding Anima's crates in your own Rust project, and a golden-path tour of memory, negotiation, and observability — see [docs/ONBOARDING.md](docs/ONBOARDING.md).
+
+---
+
 ## The Four Layers
 
 | Layer | Crate | Replaces | Tagline |
@@ -45,7 +70,7 @@ The brainstem. The fundamental compute unit is an *inference*, not a thread. The
 
 ## The Anima Observatory
 
-The Observatory translates machine-speed AI cognition into human-speed telemetry:
+This is Anima's GUI — see [Getting Started](#getting-started) above to run it locally. It's a React/Vite frontend (`observatory-ui/`) fed by a WebSocket telemetry server (`anima-observatory/`), and translates machine-speed AI cognition into human-speed telemetry:
 
 - **Swarm Map** — real-time node-graph of INP intent pulses and negotiation outcomes
 - **Memory Topography** — 2D/3D cluster view of SSE nodes glowing and fading with temporal decay
@@ -77,6 +102,24 @@ A **JIT Hardware-Fluid Engine** detects the available silicon (Apple ANE, NVIDIA
 | 3 | 7–9 | CK: inference scheduler, circuit breakers, unified memory fabric; ZKPA |
 | 4 | 10–12 | Observatory UI, three-tier deployment, beta release |
 | 5 | 13–16 | Production hardening, compliance certification, v1.0 |
+
+---
+
+## Documentation
+
+| Doc | Purpose |
+|-----|---------|
+| [docs/API.md](docs/API.md) | API reference across all four layers |
+| [docs/ONBOARDING.md](docs/ONBOARDING.md) | Beta onboarding guide |
+| [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) | Detection signals, severity classification, and response procedure per layer |
+| [docs/compliance/SOC2.md](docs/compliance/SOC2.md) | SOC 2 Type II control mapping and certification prep |
+| [docs/compliance/HIPAA.md](docs/compliance/HIPAA.md) | HIPAA technical-safeguards mapping and deployer responsibilities |
+| [docs/compliance/FEDRAMP.md](docs/compliance/FEDRAMP.md) | FedRAMP baseline/control mapping and authorization prep notes |
+
+None of the compliance documents constitute an actual certification —
+SOC 2, HIPAA, and FedRAMP all require independent third-party
+assessment/audit of a live deployment, which is outside what a codebase can
+self-certify.
 
 ---
 
