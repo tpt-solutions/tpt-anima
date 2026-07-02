@@ -55,6 +55,11 @@ pub struct BudgetManager {
     total_budget: ComputeBudget,
     allocations: HashMap<ComputeUnit, u64>,
     current_temperature: f32,
+    current_power_watts: f32,
+    /// Per-hardware-tier temperature readings. Falls back to
+    /// `current_temperature` for units with no reading of their own, since
+    /// CPU/GPU/NPU dies each carry independent thermal sensors in practice.
+    unit_temperatures: HashMap<ComputeUnit, f32>,
 }
 
 impl BudgetManager {
@@ -63,6 +68,8 @@ impl BudgetManager {
             total_budget: budget,
             allocations: HashMap::new(),
             current_temperature: 25.0, // ambient default
+            current_power_watts: 0.0,
+            unit_temperatures: HashMap::new(),
         }
     }
 
@@ -110,6 +117,115 @@ impl BudgetManager {
         )
     }
 
+    /// Record current power draw (watts) from hardware telemetry.
+    pub fn update_power_draw(&mut self, watts: f32) {
+        self.current_power_watts = watts.max(0.0);
+    }
+
+    /// Current power draw in watts.
+    pub fn current_power_draw(&self) -> f32 {
+        self.current_power_watts
+    }
+
+    /// Remaining power headroom before hitting `max_power_watts`.
+    pub fn power_headroom_watts(&self) -> f32 {
+        (self.total_budget.thermal_constraints.max_power_watts - self.current_power_watts).max(0.0)
+    }
+
+    /// Whether current power draw has reached the configured budget.
+    pub fn is_power_constrained(&self) -> bool {
+        self.current_power_watts >= self.total_budget.thermal_constraints.max_power_watts
+    }
+
+    /// Fraction (0.0..=1.0) of a requested FLOP allocation that should be
+    /// granted at the current thermal status. Allocations are scaled down
+    /// progressively as temperature rises, rather than cut off abruptly, so
+    /// the system sheds load smoothly instead of oscillating between full
+    /// allocation and thermal shutdown.
+    pub fn thermal_throttle_factor(&self) -> f32 {
+        Self::throttle_factor_for_status(self.thermal_status())
+    }
+
+    fn throttle_factor_for_status(status: ThermalStatus) -> f32 {
+        match status {
+            ThermalStatus::Cool | ThermalStatus::Warm => 1.0,
+            ThermalStatus::Hot => 0.75,
+            ThermalStatus::Throttled => 0.4,
+            ThermalStatus::Critical => 0.0,
+        }
+    }
+
+    /// Record a temperature reading for a specific hardware tier (CPU, GPU,
+    /// or NPU). Each tier has its own thermal envelope in real hardware —
+    /// a hot GPU die shouldn't throttle CPU-bound inference and vice versa.
+    pub fn update_unit_temperature(&mut self, unit: ComputeUnit, temp_celsius: f32) -> ThermalStatus {
+        self.unit_temperatures.insert(unit, temp_celsius);
+        self.unit_thermal_status(unit)
+    }
+
+    /// Thermal status for a specific hardware tier. Falls back to the
+    /// system-wide reading if this unit has never reported its own.
+    pub fn unit_thermal_status(&self, unit: ComputeUnit) -> ThermalStatus {
+        let temp = self
+            .unit_temperatures
+            .get(&unit)
+            .copied()
+            .unwrap_or(self.current_temperature);
+        ThermalStatus::from_temperature(temp, self.total_budget.thermal_constraints.max_temp_celsius)
+    }
+
+    /// Throttle factor for a specific hardware tier, mirroring
+    /// [`thermal_throttle_factor`](Self::thermal_throttle_factor) but scoped
+    /// to one compute unit's own thermal envelope.
+    pub fn unit_thermal_throttle_factor(&self, unit: ComputeUnit) -> f32 {
+        Self::throttle_factor_for_status(self.unit_thermal_status(unit))
+    }
+
+    /// Thermal- and power-aware FLOP allocation.
+    ///
+    /// On top of the plain FLOPS budget check in [`allocate_flops`](Self::allocate_flops),
+    /// this refuses new allocations once the power budget is exhausted and
+    /// scales the granted FLOPS down under thermal pressure
+    /// (see [`thermal_throttle_factor`](Self::thermal_throttle_factor)).
+    /// Returns the FLOPS actually granted, which may be less than requested.
+    pub fn allocate_flops_constrained(
+        &mut self,
+        unit: ComputeUnit,
+        flops: u64,
+        estimated_power_watts: f32,
+    ) -> Result<u64, BudgetError> {
+        if self.is_power_constrained() {
+            return Err(BudgetError::PowerBudgetExceeded {
+                current_watts: self.current_power_watts,
+                max_watts: self.total_budget.thermal_constraints.max_power_watts,
+            });
+        }
+
+        let factor = self.unit_thermal_throttle_factor(unit);
+        if factor <= 0.0 {
+            return Err(BudgetError::ThermalCritical {
+                temperature_celsius: self
+                    .unit_temperatures
+                    .get(&unit)
+                    .copied()
+                    .unwrap_or(self.current_temperature),
+            });
+        }
+
+        let throttled_flops = ((flops as f64) * factor as f64) as u64;
+        let granted = self
+            .allocate_flops(unit, throttled_flops)
+            .map_err(BudgetError::FlopsBudgetExceeded)?;
+
+        self.current_power_watts += estimated_power_watts.max(0.0);
+        Ok(granted)
+    }
+
+    /// Release power previously accounted for by [`allocate_flops_constrained`](Self::allocate_flops_constrained).
+    pub fn release_power_watts(&mut self, watts: f32) {
+        self.current_power_watts = (self.current_power_watts - watts.max(0.0)).max(0.0);
+    }
+
     /// Total FLOPS currently allocated across all units.
     pub fn current_allocation(&self) -> u64 {
         self.allocations.values().sum()
@@ -143,6 +259,18 @@ impl Default for BudgetManager {
             },
         })
     }
+}
+
+// ── Errors ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
+pub enum BudgetError {
+    #[error("FLOPS budget exceeded: {0} remaining")]
+    FlopsBudgetExceeded(u64),
+    #[error("power budget exceeded: {current_watts}W drawn of {max_watts}W max")]
+    PowerBudgetExceeded { current_watts: f32, max_watts: f32 },
+    #[error("thermal critical at {temperature_celsius}°C — allocation refused")]
+    ThermalCritical { temperature_celsius: f32 },
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -239,5 +367,76 @@ mod tests {
         let mgr = BudgetManager::default();
         assert_eq!(mgr.current_allocation(), 0);
         assert_eq!(mgr.thermal_status(), ThermalStatus::Cool);
+    }
+
+    #[test]
+    fn power_draw_tracks_headroom_and_constraint() {
+        let mut mgr = BudgetManager::new(test_budget());
+        assert_eq!(mgr.power_headroom_watts(), 300.0);
+        assert!(!mgr.is_power_constrained());
+
+        mgr.update_power_draw(300.0);
+        assert_eq!(mgr.power_headroom_watts(), 0.0);
+        assert!(mgr.is_power_constrained());
+    }
+
+    #[test]
+    fn thermal_throttle_factor_scales_with_status() {
+        let mut mgr = BudgetManager::new(test_budget());
+        mgr.update_temperature(30.0); // Cool
+        assert_eq!(mgr.thermal_throttle_factor(), 1.0);
+
+        mgr.update_temperature(62.0); // Hot
+        assert_eq!(mgr.thermal_throttle_factor(), 0.75);
+
+        mgr.update_temperature(73.0); // Throttled
+        assert_eq!(mgr.thermal_throttle_factor(), 0.4);
+
+        mgr.update_temperature(80.0); // Critical
+        assert_eq!(mgr.thermal_throttle_factor(), 0.0);
+    }
+
+    #[test]
+    fn allocate_flops_constrained_scales_down_when_hot() {
+        let mut mgr = BudgetManager::new(test_budget());
+        mgr.update_temperature(62.0); // Hot -> 0.75 factor
+
+        let granted = mgr
+            .allocate_flops_constrained(ComputeUnit::GPU, 400, 100.0)
+            .unwrap();
+
+        assert_eq!(granted, 300); // 400 * 0.75
+        assert_eq!(mgr.current_power_draw(), 100.0);
+    }
+
+    #[test]
+    fn allocate_flops_constrained_refuses_at_critical_temperature() {
+        let mut mgr = BudgetManager::new(test_budget());
+        mgr.update_temperature(80.0); // Critical
+
+        let result = mgr.allocate_flops_constrained(ComputeUnit::GPU, 400, 100.0);
+        assert!(matches!(result, Err(BudgetError::ThermalCritical { .. })));
+        assert_eq!(mgr.current_power_draw(), 0.0);
+    }
+
+    #[test]
+    fn allocate_flops_constrained_refuses_when_power_exhausted() {
+        let mut mgr = BudgetManager::new(test_budget());
+        mgr.update_power_draw(300.0); // at max_power_watts
+
+        let result = mgr.allocate_flops_constrained(ComputeUnit::GPU, 400, 50.0);
+        assert!(matches!(result, Err(BudgetError::PowerBudgetExceeded { .. })));
+    }
+
+    #[test]
+    fn release_power_watts_frees_headroom() {
+        let mut mgr = BudgetManager::new(test_budget());
+        mgr.update_power_draw(200.0);
+        mgr.release_power_watts(150.0);
+        assert_eq!(mgr.current_power_draw(), 50.0);
+
+        // Never goes negative.
+        mgr.release_power_watts(1000.0);
+        assert_eq!(mgr.current_power_draw(), 0.0);
     }
 }

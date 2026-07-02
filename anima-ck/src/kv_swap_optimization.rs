@@ -71,8 +71,8 @@ impl ContextBuffer {
         }
     }
 
-    pub fn should_pin(&self) -> bool {
-        self.access_count >= 10 && !self.pinned
+    pub fn should_pin(&self, threshold: u32) -> bool {
+        self.access_count >= threshold && !self.pinned
     }
 
     pub fn record_access(&mut self) {
@@ -105,7 +105,9 @@ impl KVCacheOptimizer {
 
     /// Prepare a context buffer for a job's KV cache.
     pub fn prepare_buffer(&mut self, job_id: uuid::Uuid, cache_tokens: u64) -> &mut ContextBuffer {
-        self.swap_buffers.entry(job_id).or_insert_with(|| ContextBuffer::new(cache_tokens))
+        self.swap_buffers
+            .entry(job_id)
+            .or_insert_with(|| ContextBuffer::new(cache_tokens))
     }
 
     /// Swap out a job's context with minimal overhead.
@@ -120,13 +122,12 @@ impl KVCacheOptimizer {
 
         // Serialize context metadata (not the full KV cache, just the essential state)
         let buffer = self.prepare_buffer(job_id, job.inference.kv_cache_config.cache_size_tokens);
-        
+
         // For optimization, we only serialize essential metadata
         // Full KV cache data would be handled by the JIT backend
         buffer.data.clear();
-        buffer.data.extend_from_slice(&job.inference.id.as_bytes());
+        buffer.data.extend_from_slice(job.inference.id.as_bytes());
         buffer.data.push(job.inference.priority as u8);
-        buffer.data.extend_from_slice(&job.inference.priority.to_string().as_bytes());
 
         let elapsed_us = start.elapsed().as_micros() as u64;
         self.swap_latency_us.push(elapsed_us);
@@ -135,8 +136,9 @@ impl KVCacheOptimizer {
 
     /// Check if a buffer should be pinned based on access frequency.
     pub fn check_pin(&mut self, job_id: &uuid::Uuid) -> bool {
+        let threshold = self.strategy.pin_frequency_threshold;
         if let Some(buf) = self.swap_buffers.get_mut(job_id) {
-            if buf.should_pin() {
+            if buf.should_pin(threshold) {
                 buf.pinned = true;
                 return true;
             }
@@ -165,7 +167,8 @@ impl KVCacheOptimizer {
         }
 
         // Sort by priority (higher priority first to ensure they get swapped in first)
-        plan.swap_operations.sort_by(|a, b| b.priority.cmp(&a.priority));
+        plan.swap_operations
+            .sort_by_key(|op| std::cmp::Reverse(op.priority));
         plan
     }
 
@@ -247,7 +250,7 @@ mod tests {
                     nvme_gb: 0,
                 },
                 kv_cache_config: KVCacheConfig {
-                    cache_size_tokens,
+                    cache_size_tokens: cache_tokens,
                     eviction_policy: EvictionPolicy::LRU,
                     prefetch_depth: 0,
                 },
@@ -276,15 +279,15 @@ mod tests {
     fn context_buffer_pin_threshold() {
         let mut optimizer = KVCacheOptimizer::default();
         let job_id = Uuid::new_v4();
-        
+
         optimizer.prepare_buffer(job_id, 1000);
-        
+
         // Access 9 times - should not pin
         for _ in 0..9 {
             optimizer.access_buffer(&job_id).unwrap().record_access();
         }
         assert!(!optimizer.access_buffer(&job_id).unwrap().pinned);
-        
+
         // Access 1 more time - should pin
         optimizer.access_buffer(&job_id).unwrap().record_access();
         assert!(optimizer.check_pin(&job_id));
@@ -296,5 +299,21 @@ mod tests {
         let stats = optimizer.swap_stats();
         assert_eq!(stats.total_swaps, 0);
         assert_eq!(stats.avg_latency_us, 0.0);
+    }
+
+    #[test]
+    fn swap_out_records_latency_and_buffer() {
+        let mut optimizer = KVCacheOptimizer::default();
+        let job_id = Uuid::new_v4();
+        let job = make_test_job(job_id, InferencePriority::Normal, 2048);
+
+        optimizer.swap_out(job_id, &job);
+
+        let stats = optimizer.swap_stats();
+        assert_eq!(stats.total_swaps, 1);
+
+        let buffer = optimizer.access_buffer(&job_id).unwrap();
+        assert_eq!(buffer.max_tokens, 2048);
+        assert!(!buffer.data.is_empty());
     }
 }

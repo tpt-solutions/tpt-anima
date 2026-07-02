@@ -129,7 +129,7 @@ pub struct AgencyLedgerEntry {
     pub details: String,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum ZkpaError {
     #[error("session expired")]
     SessionExpired,

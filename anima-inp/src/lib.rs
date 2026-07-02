@@ -21,7 +21,9 @@ pub use intent::{
 };
 
 pub use broadcast::{BroadcastConfig, BroadcastError, BroadcastResult, IntentBroadcaster};
-pub use consensus::{ConsensusManager, ConsensusStats, EconomicStake, ProofOfWork, RateLimiter, ReputationManager};
+pub use consensus::{
+    ConsensusManager, ConsensusStats, EconomicStake, ProofOfWork, RateLimiter, ReputationManager,
+};
 pub use contracts::{ContractError, ContractValidator, SemanticContract};
 pub use ledger::{ComputeCredits, ComputeLedger, ExternalRails, Transaction};
 pub use manifest::{

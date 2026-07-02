@@ -382,7 +382,7 @@ mod tests {
         );
         let qos = QoSConstraints::default();
         let score = bid.score(&qos);
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]

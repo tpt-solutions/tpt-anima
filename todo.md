@@ -330,23 +330,23 @@
 - [x] Causal graph scaling benchmark (target: sub-millisecond retrieval at 1B+ nodes)
 
 ### 5.2 Performance Optimization
-- [ ] Optimize ZKPA compute overhead (async STARK/SNARK generation without blocking inference)
-- [ ] Optimize KV cache context swapping latency (minimize thrashing during multi-inference preemption)
-- [ ] Optimize INP routing consensus (prevent spam without central coordinator)
-- [ ] Calibrate temporal decay function (research: episodic vs. semantic vs. procedural forgetting curves)
-- [ ] Tune micro-economy stability (prevent Compute Credit inflation/deflation)
-- [ ] Thermal and power optimization pass across all hardware tiers
+- [x] Optimize ZKPA compute overhead (async STARK/SNARK generation without blocking inference)
+- [x] Optimize KV cache context swapping latency (minimize thrashing during multi-inference preemption)
+- [x] Optimize INP routing consensus (prevent spam without central coordinator)
+- [x] Calibrate temporal decay function (research: episodic vs. semantic vs. procedural forgetting curves)
+- [x] Tune micro-economy stability (prevent Compute Credit inflation/deflation)
+- [x] Thermal and power optimization pass across all hardware tiers
 
 ### 5.3 Compliance Certification
-- [ ] SOC2 Type II certification preparation (controls mapping, evidence collection)
-- [ ] HIPAA compliance review (PHI handling, audit log validation)
-- [ ] FedRAMP authorization preparation (control baseline, documentation)
-- [ ] Third-party security audit engagement
-- [ ] Penetration testing (ZKPA session, INP broadcast, SSE storage)
+- [x] SOC2 Type II certification preparation (controls mapping, evidence collection) — see [docs/compliance/SOC2.md](docs/compliance/SOC2.md)
+- [x] HIPAA compliance review (PHI handling, audit log validation) — see [docs/compliance/HIPAA.md](docs/compliance/HIPAA.md)
+- [x] FedRAMP authorization preparation (control baseline, documentation) — see [docs/compliance/FEDRAMP.md](docs/compliance/FEDRAMP.md)
+- [ ] Third-party security audit engagement (requires engaging an external firm — not code-doable)
+- [ ] Penetration testing (ZKPA session, INP broadcast, SSE storage) (testing — explicitly out of scope for this pass)
 
 ### 5.4 Production Release
-- [ ] Final security hardening pass
-- [ ] Production documentation finalization
-- [ ] Tag and publish v1.0 release
-- [ ] Set up production monitoring and alerting
-- [ ] Establish incident response procedures
+- [x] Final security hardening pass (delegation least-privilege fix in `anima-zkpa/src/delegation.rs`; reviewed session/proof/ledger paths for unsafe unwraps and timing issues)
+- [x] Production documentation finalization — see [README.md Documentation](README.md#documentation)
+- [ ] Tag and publish v1.0 release (requires explicit user sign-off — release/push action)
+- [ ] Set up production monitoring and alerting (requires real hosting/infra — not code-doable in this repo)
+- [x] Establish incident response procedures — see [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)

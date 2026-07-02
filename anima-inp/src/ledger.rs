@@ -157,9 +157,18 @@ pub enum RailsError {
 // ---------------------------------------------------------------------------
 
 /// The INP Compute Ledger — tracks balances and transactions between agents.
+///
+/// Internal `transfer()` is zero-sum by construction (a debit always equals
+/// the paired credit), so the only ways total supply can move are the
+/// explicit `mint`/`burn` paths (external-rail deposits/withdrawals). Tracking
+/// `total_minted`/`total_burned` lets [`verify_conservation`](Self::verify_conservation)
+/// detect drift — e.g. a bug that lets credits appear or vanish — which is
+/// what keeps the micro-economy from silently inflating or deflating.
 pub struct ComputeLedger {
     balances: HashMap<AgentId, AgentBalance>,
     transactions: Vec<Transaction>,
+    total_minted: ComputeCredits,
+    total_burned: ComputeCredits,
 }
 
 impl ComputeLedger {
@@ -167,6 +176,8 @@ impl ComputeLedger {
         Self {
             balances: HashMap::new(),
             transactions: Vec::new(),
+            total_minted: ComputeCredits::zero(),
+            total_burned: ComputeCredits::zero(),
         }
     }
 
@@ -178,6 +189,12 @@ impl ComputeLedger {
     }
 
     /// Transfer Compute Credits between agents.
+    ///
+    /// Rejects negative amounts: a negative transfer would let a caller mint
+    /// credits out of thin air (it would *add* to the sender's balance while
+    /// debiting the receiver, since the arithmetic is symmetric) without ever
+    /// failing the balance check. Zero-amount transfers are allowed as a way
+    /// to record a no-cost negotiation/execution without moving balances.
     pub fn transfer(
         &mut self,
         from: AgentId,
@@ -186,6 +203,10 @@ impl ComputeLedger {
         intent_id: IntentId,
         description: String,
     ) -> Result<Transaction, LedgerError> {
+        if amount.0 < 0.0 {
+            return Err(LedgerError::InvalidAmount { amount: amount.0 });
+        }
+
         self.ensure_agent(from);
         self.ensure_agent(to);
 
@@ -210,6 +231,88 @@ impl ComputeLedger {
 
         self.transactions.push(tx.clone());
         Ok(tx)
+    }
+
+    /// Mint new Compute Credits into an agent's balance (e.g. backing an
+    /// external-rail deposit). This is the only path that increases total
+    /// supply, so it is tracked separately from internal transfers.
+    pub fn mint(&mut self, agent_id: AgentId, amount: ComputeCredits) -> Result<(), LedgerError> {
+        if amount.0 <= 0.0 {
+            return Err(LedgerError::InvalidAmount { amount: amount.0 });
+        }
+        self.ensure_agent(agent_id);
+        let bal = self.balances.get_mut(&agent_id).unwrap();
+        bal.balance = bal.balance + amount;
+        bal.total_earned = bal.total_earned + amount;
+        self.total_minted = self.total_minted + amount;
+        Ok(())
+    }
+
+    /// Burn Compute Credits from an agent's balance (e.g. backing an
+    /// external-rail withdrawal). The only path that decreases total supply.
+    pub fn burn(&mut self, agent_id: AgentId, amount: ComputeCredits) -> Result<(), LedgerError> {
+        if amount.0 <= 0.0 {
+            return Err(LedgerError::InvalidAmount { amount: amount.0 });
+        }
+        self.ensure_agent(agent_id);
+        let bal = self.balances.get_mut(&agent_id).unwrap();
+        if bal.balance.0 < amount.0 {
+            return Err(LedgerError::InsufficientFunds {
+                available: bal.balance.0,
+                requested: amount.0,
+            });
+        }
+        bal.balance = bal.balance - amount;
+        bal.total_spent = bal.total_spent + amount;
+        self.total_burned = self.total_burned + amount;
+        Ok(())
+    }
+
+    /// Deposit external funds via an [`ExternalRails`] backend and mint the
+    /// resulting Compute Credits into the agent's ledger balance.
+    pub fn deposit_external(
+        &mut self,
+        rails: &dyn ExternalRails,
+        agent_id: AgentId,
+        amount: f64,
+    ) -> Result<ComputeCredits, LedgerError> {
+        let credits = rails
+            .deposit(agent_id, amount)
+            .map_err(LedgerError::RailsFailure)?;
+        self.mint(agent_id, credits)?;
+        Ok(credits)
+    }
+
+    /// Withdraw Compute Credits from an agent's ledger balance and settle via
+    /// an [`ExternalRails`] backend.
+    pub fn withdraw_external(
+        &mut self,
+        rails: &dyn ExternalRails,
+        agent_id: AgentId,
+        credits: ComputeCredits,
+    ) -> Result<String, LedgerError> {
+        self.burn(agent_id, credits)?;
+        rails
+            .withdraw(agent_id, credits)
+            .map_err(LedgerError::RailsFailure)
+    }
+
+    /// Total credits minted via external deposits.
+    pub fn total_minted(&self) -> ComputeCredits {
+        self.total_minted
+    }
+
+    /// Total credits burned via external withdrawals.
+    pub fn total_burned(&self) -> ComputeCredits {
+        self.total_burned
+    }
+
+    /// Verify the money-supply invariant: circulating credits must equal net
+    /// minted supply. A mismatch indicates a bug that inflated or deflated
+    /// the economy outside the mint/burn paths.
+    pub fn verify_conservation(&self) -> bool {
+        let expected = (self.total_minted - self.total_burned).amount();
+        (self.total_circulation().amount() - expected).abs() < 1e-6
     }
 
     /// Get an agent's current balance.
@@ -270,6 +373,10 @@ impl Default for ComputeLedger {
 pub enum LedgerError {
     #[error("insufficient funds: available={available}, requested={requested}")]
     InsufficientFunds { available: f64, requested: f64 },
+    #[error("invalid amount: {amount} (must be positive)")]
+    InvalidAmount { amount: f64 },
+    #[error("external rails failure: {0}")]
+    RailsFailure(#[from] RailsError),
 }
 
 // ---------------------------------------------------------------------------
@@ -395,5 +502,117 @@ mod tests {
 
         let tx_id = rails.withdraw(aid, ComputeCredits::new(50.0)).unwrap();
         assert!(tx_id.starts_with("tx_"));
+    }
+
+    #[test]
+    fn transfer_allows_zero_but_rejects_negative_amounts() {
+        let mut ledger = ComputeLedger::new();
+        let alice = agent();
+        let bob = agent();
+        ledger.ensure_agent(alice);
+        ledger.ensure_agent(bob);
+        ledger.balances.get_mut(&alice).unwrap().balance = ComputeCredits::new(100.0);
+
+        // Zero-amount transfers are allowed as no-cost recording transactions.
+        assert!(ledger
+            .transfer(
+                alice,
+                bob,
+                ComputeCredits::new(0.0),
+                intent(),
+                "zero".to_string()
+            )
+            .is_ok());
+
+        // A negative "transfer" from Alice to Bob would otherwise increase
+        // Alice's balance while decreasing Bob's — free money out of thin air.
+        assert!(ledger
+            .transfer(
+                alice,
+                bob,
+                ComputeCredits::new(-10.0),
+                intent(),
+                "negative".to_string()
+            )
+            .is_err());
+
+        assert_eq!(ledger.balance_of(&alice).amount(), 100.0);
+        assert_eq!(ledger.balance_of(&bob).amount(), 0.0);
+    }
+
+    #[test]
+    fn deposit_external_mints_and_tracks_supply() {
+        let mut ledger = ComputeLedger::new();
+        let rails = MockExternalRails;
+        let alice = agent();
+
+        let credits = ledger.deposit_external(&rails, alice, 100.0).unwrap();
+
+        assert_eq!(credits.amount(), 100.0);
+        assert_eq!(ledger.balance_of(&alice).amount(), 100.0);
+        assert_eq!(ledger.total_minted().amount(), 100.0);
+        assert!(ledger.verify_conservation());
+    }
+
+    #[test]
+    fn withdraw_external_burns_and_tracks_supply() {
+        let mut ledger = ComputeLedger::new();
+        let rails = MockExternalRails;
+        let alice = agent();
+
+        ledger.deposit_external(&rails, alice, 100.0).unwrap();
+        let tx_id = ledger
+            .withdraw_external(&rails, alice, ComputeCredits::new(40.0))
+            .unwrap();
+
+        assert!(tx_id.starts_with("tx_"));
+        assert_eq!(ledger.balance_of(&alice).amount(), 60.0);
+        assert_eq!(ledger.total_burned().amount(), 40.0);
+        assert!(ledger.verify_conservation());
+    }
+
+    #[test]
+    fn withdraw_external_rejects_overdraft() {
+        let mut ledger = ComputeLedger::new();
+        let rails = MockExternalRails;
+        let alice = agent();
+        ledger.ensure_agent(alice);
+
+        let result = ledger.withdraw_external(&rails, alice, ComputeCredits::new(10.0));
+        assert!(result.is_err());
+        assert_eq!(ledger.total_burned().amount(), 0.0);
+    }
+
+    #[test]
+    fn internal_transfers_preserve_conservation() {
+        let mut ledger = ComputeLedger::new();
+        let rails = MockExternalRails;
+        let alice = agent();
+        let bob = agent();
+        let carol = agent();
+
+        ledger.deposit_external(&rails, alice, 100.0).unwrap();
+        ledger
+            .transfer(
+                alice,
+                bob,
+                ComputeCredits::new(40.0),
+                intent(),
+                "pay bob".to_string(),
+            )
+            .unwrap();
+        ledger
+            .transfer(
+                bob,
+                carol,
+                ComputeCredits::new(15.0),
+                intent(),
+                "pay carol".to_string(),
+            )
+            .unwrap();
+
+        // Internal transfers are zero-sum; total supply is unchanged.
+        assert_eq!(ledger.total_circulation().amount(), 100.0);
+        assert!(ledger.verify_conservation());
     }
 }

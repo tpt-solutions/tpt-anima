@@ -14,5 +14,8 @@ pub mod scheduler;
 pub mod thought_bubble;
 pub mod types;
 
-pub use budgeting::{BudgetManager, ComputeBudget, ComputeUnit, ThermalStatus};
-pub use kv_swap_optimization::{ContextBuffer, KVCacheOptimizer, SwapPlan, SwapStatistics, SwapStrategy, SwapOperation, SwapPriority};
+pub use budgeting::{BudgetError, BudgetManager, ComputeBudget, ComputeUnit, ThermalStatus};
+pub use kv_swap_optimization::{
+    ContextBuffer, KVCacheOptimizer, SwapOperation, SwapPlan, SwapPriority, SwapStatistics,
+    SwapStrategy,
+};

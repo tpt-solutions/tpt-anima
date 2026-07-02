@@ -32,6 +32,19 @@ impl DelegationManager {
             ));
         }
 
+        // Least-privilege enforcement: if `parent_id` itself only holds
+        // authority via an inbound delegation (i.e. it is not a root
+        // grantor), it cannot re-delegate permissions beyond what it was
+        // granted. Without this check, a compromised or buggy intermediate
+        // agent could escalate scope for its own children.
+        if let Some(inherited) = self.granted_permissions(parent_id) {
+            if let Some(excess) = permissions.iter().find(|p| !inherited.contains(*p)) {
+                return Err(ZkpaError::DelegationDenied(format!(
+                    "parent lacks permission '{excess}' and cannot delegate it"
+                )));
+            }
+        }
+
         let delegation = AuthorityDelegation {
             parent_id,
             child_id,
@@ -81,6 +94,24 @@ impl DelegationManager {
             }
         }
         false
+    }
+
+    /// Permissions `agent_id` currently holds as the child of some active
+    /// delegation, union'd across every grantor. Returns `None` if
+    /// `agent_id` has never appeared as a delegation child — such agents are
+    /// treated as root grantors, free to delegate any permission set.
+    fn granted_permissions(&self, agent_id: Uuid) -> Option<std::collections::HashSet<String>> {
+        let mut found = false;
+        let mut permissions = std::collections::HashSet::new();
+        for delegations in self.delegations.values() {
+            for d in delegations {
+                if d.child_id == agent_id && !d.revoked {
+                    found = true;
+                    permissions.extend(d.scoped_permissions.iter().cloned());
+                }
+            }
+        }
+        found.then_some(permissions)
     }
 
     pub fn delegation_chain(&self, parent_id: Uuid) -> Vec<&AuthorityDelegation> {

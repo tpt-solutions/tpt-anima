@@ -24,6 +24,8 @@ pub(crate) mod serde_system_time {
 
 // ── Priority ────────────────────────────────────────────────────────────────
 
+use std::fmt;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum InferencePriority {
@@ -32,6 +34,18 @@ pub enum InferencePriority {
     Normal = 2,
     High = 3,
     Critical = 4,
+}
+
+impl fmt::Display for InferencePriority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InferencePriority::Deferred => write!(f, "deferred"),
+            InferencePriority::Low => write!(f, "low"),
+            InferencePriority::Normal => write!(f, "normal"),
+            InferencePriority::High => write!(f, "high"),
+            InferencePriority::Critical => write!(f, "critical"),
+        }
+    }
 }
 
 // ── Resource requests & hardware ────────────────────────────────────────────

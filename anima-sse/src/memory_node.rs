@@ -208,7 +208,9 @@ impl CausalLink {
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecayProfile {
-    /// λ in the exponential formula — typical range `0.001..0.1` per hour.
+    /// λ in the exponential formula — typical range `0.00005..0.1` per hour
+    /// (see [`MemoryType::decay_profile`](crate::decay::MemoryType::decay_profile)
+    /// for the episodic/semantic/procedural calibration and its rationale).
     pub decay_rate: f32,
     /// Multiplicative strength boost applied on every read access.
     pub reinforcement_factor: f32,

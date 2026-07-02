@@ -236,7 +236,7 @@ mod tests {
         let result = make_result(100, 0.95, 0.5);
 
         let score = negotiator.score_result(&result, &constraints);
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]

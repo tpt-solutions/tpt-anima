@@ -12,9 +12,23 @@ use crate::memory_node::{DecayProfile, MemoryNode};
 
 /// Predefined decay profiles calibrated for different memory types.
 ///
-/// - **Episodic** — fast decay (events fade quickly unless reinforced).
-/// - **Semantic** — slow decay (facts persist longer).
-/// - **Procedural** — very slow decay (skills are sticky).
+/// `decay_rate` is λ (per hour) in `strength = strength × exp(−λ × Δhours)`;
+/// half-life in hours is `ln(2) / λ`. Rates are calibrated against established
+/// human-memory forgetting-curve research rather than picked arbitrarily:
+///
+/// - **Episodic** — λ = 0.05 ⇒ half-life ≈ 13.9h. Unreinforced episodic
+///   (single-event) memories fade fastest: this matches Ebbinghaus's original
+///   forgetting curve, which shows ~30% retention after 24h
+///   (`exp(-0.05 × 24) ≈ 0.30`).
+/// - **Semantic** — λ = 0.001 ⇒ half-life ≈ 28.9 days. Facts and general
+///   knowledge decay far slower than single events; this targets a
+///   roughly one-month half-life, consistent with spaced-repetition
+///   research on when factual recall first needs reinforcement.
+/// - **Procedural** — λ = 0.00005 ⇒ half-life ≈ 577 days (~1.6 years).
+///   Motor/procedural skills are the most durable memory type (Bahrick's
+///   "permastore" findings, long-term flight-simulator skill-retention
+///   studies), so procedural memories should barely decay within the
+///   lifetime of a running system.
 pub enum MemoryType {
     Episodic,
     Semantic,
@@ -34,7 +48,7 @@ impl MemoryType {
                 pinned: false,
             },
             MemoryType::Semantic => DecayProfile {
-                decay_rate: 0.005,
+                decay_rate: 0.001,
                 reinforcement_factor: 1.3,
                 max_strength: 1.0,
                 pruning_threshold: 0.03,
@@ -42,7 +56,7 @@ impl MemoryType {
                 pinned: false,
             },
             MemoryType::Procedural => DecayProfile {
-                decay_rate: 0.001,
+                decay_rate: 0.00005,
                 reinforcement_factor: 1.1,
                 max_strength: 1.0,
                 pruning_threshold: 0.02,
@@ -175,6 +189,46 @@ mod tests {
 
         assert!(epi.decay_rate > sem.decay_rate);
         assert!(sem.decay_rate > pro.decay_rate);
+    }
+
+    /// Half-life (in hours) implied by a decay rate: `ln(2) / rate`.
+    fn half_life_hours(rate: f32) -> f32 {
+        std::f32::consts::LN_2 / rate
+    }
+
+    #[test]
+    fn episodic_half_life_matches_ebbinghaus_24h_retention() {
+        let profile = MemoryType::Episodic.decay_profile();
+        // Ebbinghaus's curve retains ~30% after 24h unreinforced.
+        let retained_after_24h = (-profile.decay_rate * 24.0).exp();
+        assert!(
+            (retained_after_24h - 0.30).abs() < 0.02,
+            "retained={retained_after_24h}"
+        );
+    }
+
+    #[test]
+    fn semantic_half_life_is_on_the_order_of_a_month() {
+        let profile = MemoryType::Semantic.decay_profile();
+        let half_life_days = half_life_hours(profile.decay_rate) / 24.0;
+        assert!(
+            (20.0..40.0).contains(&half_life_days),
+            "half_life_days={half_life_days}"
+        );
+    }
+
+    #[test]
+    fn procedural_half_life_is_on_the_order_of_years() {
+        let profile = MemoryType::Procedural.decay_profile();
+        let half_life_days = half_life_hours(profile.decay_rate) / 24.0;
+        assert!(half_life_days > 365.0, "half_life_days={half_life_days}");
+    }
+
+    #[test]
+    fn procedural_decays_at_least_an_order_of_magnitude_slower_than_semantic() {
+        let sem = MemoryType::Semantic.decay_profile();
+        let pro = MemoryType::Procedural.decay_profile();
+        assert!(sem.decay_rate / pro.decay_rate >= 10.0);
     }
 
     #[test]

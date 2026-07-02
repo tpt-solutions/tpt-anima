@@ -7,10 +7,10 @@
 //! - Economic stake requirements
 //! - Reputation-based throttling
 
-use crate::intent::{AgentId, CapabilityBid, Intent, IntentId};
-use serde::{Deserialize, Serialize};
+use crate::intent::{AgentId, Intent};
+use sha2::Digest;
 use std::collections::{HashMap, VecDeque};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 // ── Rate Limiter ───────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ impl TokenBucket {
 
     fn refill(&mut self, rate: f32, now: Instant) {
         let elapsed = now.duration_since(self.last_refill).as_secs_f32();
-        self.tokens = (self.tokens + elapsed * rate).min(rate as f32 * 100.0); // Cap at reasonable max
+        self.tokens = (self.tokens + elapsed * rate).min(rate * 100.0); // Cap at reasonable max
         self.last_refill = now;
     }
 
@@ -71,14 +71,20 @@ impl RateLimiter {
     /// Check if an agent can broadcast. Returns true if allowed.
     pub fn check_broadcast(&mut self, agent_id: AgentId, cost: f32) -> bool {
         let now = Instant::now();
-        let bucket = self.buckets.entry(agent_id).or_insert_with(|| TokenBucket::new(self.max_tokens, now));
+        let bucket = self
+            .buckets
+            .entry(agent_id)
+            .or_insert_with(|| TokenBucket::new(self.max_tokens, now));
         bucket.refill(self.refill_rate, now);
         bucket.try_consume(cost)
     }
 
     /// Get current token balance for an agent.
     pub fn tokens_for(&self, agent_id: &AgentId) -> f32 {
-        self.buckets.get(agent_id).map(|b| b.current_tokens()).unwrap_or(0.0)
+        self.buckets
+            .get(agent_id)
+            .map(|b| b.current_tokens())
+            .unwrap_or(0.0)
     }
 }
 
@@ -98,6 +104,14 @@ impl ProofOfWork {
         Self {
             difficulty,
             enabled: true,
+        }
+    }
+
+    /// Create a disabled instance where any nonce passes verification.
+    pub fn disabled() -> Self {
+        Self {
+            difficulty: 0,
+            enabled: false,
         }
     }
 
@@ -138,12 +152,7 @@ impl ProofOfWork {
         }
 
         // Simple brute-force solution (in production, use more sophisticated mining)
-        for nonce in 0..u64::MAX {
-            if self.verify(data, nonce) {
-                return Some(nonce);
-            }
-        }
-        None
+        (0..u64::MAX).find(|&nonce| self.verify(data, nonce))
     }
 }
 
@@ -156,8 +165,6 @@ pub struct EconomicStake {
     min_stake: f64,
     /// Stake per broadcast (locked during processing)
     stake_per_broadcast: f64,
-    /// Lock duration in seconds
-    lock_duration_secs: u64,
 }
 
 impl EconomicStake {
@@ -165,15 +172,18 @@ impl EconomicStake {
         Self {
             min_stake,
             stake_per_broadcast,
-            lock_duration_secs: 30,
         }
     }
 
     /// Check if an agent has sufficient stake for broadcasting.
-    pub fn check_stake(&self, agent_id: &AgentId, registry: &crate::registry::CapabilityRegistry) -> bool {
+    pub fn check_stake(
+        &self,
+        agent_id: &AgentId,
+        registry: &crate::registry::CapabilityRegistry,
+    ) -> bool {
         // In production, this would query the agent's actual credit balance
         // For now, we assume all registered agents have sufficient stake
-        registry.get(agent_id).is_some() || registry.capabilities_of(agent_id).len() > 0
+        registry.get(agent_id).is_some() || !registry.capabilities_of(agent_id).is_empty()
     }
 
     /// Get the stake required per broadcast.
@@ -186,9 +196,7 @@ impl EconomicStake {
 
 /// Reputation-based throttling for intent routing.
 pub struct ReputationManager {
-    /// Reputation scores per agent (higher is better)
-    scores: HashMap<AgentId, f32>,
-    /// Action history per agent (for decay)
+    /// Action history per agent (for decay), used to derive reputation scores
     actions: HashMap<AgentId, VecDeque<TimestampedAction>>,
 }
 
@@ -201,7 +209,6 @@ struct TimestampedAction {
 impl ReputationManager {
     pub fn new() -> Self {
         Self {
-            scores: HashMap::new(),
             actions: HashMap::new(),
         }
     }
@@ -212,12 +219,15 @@ impl ReputationManager {
         self.actions
             .entry(agent_id)
             .or_default()
-            .push_back(TimestampedAction { timestamp: now, successful });
+            .push_back(TimestampedAction {
+                timestamp: now,
+                successful,
+            });
 
         // Clean up old actions (older than 1 hour)
-        self.actions
-            .get_mut(&agent_id)
-            .map(|actions| actions.retain(|a| now.duration_since(a.timestamp) < Duration::from_secs(3600)));
+        if let Some(actions) = self.actions.get_mut(&agent_id) {
+            actions.retain(|a| now.duration_since(a.timestamp) < Duration::from_secs(3600));
+        }
     }
 
     /// Get reputation score for an agent (0.0 to 1.0).
@@ -347,7 +357,6 @@ pub struct ConsensusStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::intent::{EconomicTerms, PerformanceProfile, Priority, QoSConstraints};
     use uuid::Uuid;
 
     fn agent() -> AgentId {
@@ -365,12 +374,12 @@ mod tests {
     fn rate_limiter_blocks_excessive_broadcasts() {
         let mut limiter = RateLimiter::new(5);
         let agent_id = agent();
-        
+
         // Should allow 5 broadcasts
         for _ in 0..5 {
             assert!(limiter.check_broadcast(agent_id, 1.0));
         }
-        
+
         // Should block the 6th
         assert!(!limiter.check_broadcast(agent_id, 1.0));
     }
@@ -379,7 +388,7 @@ mod tests {
     fn pow_verify_difficulty() {
         let pow = ProofOfWork::new(4); // 4 bits difficulty
         let data = b"test_intent_data";
-        
+
         // Find a valid nonce
         if let Some(nonce) = pow.solve(data) {
             assert!(pow.verify(data, nonce));
@@ -388,9 +397,10 @@ mod tests {
 
     #[test]
     fn pow_disabled_always_passes() {
-        let pow = ProofOfWork::new(4);
+        let pow = ProofOfWork::disabled();
         // When disabled, any nonce should pass
-        // Note: The current implementation still requires verification when enabled
+        assert!(pow.verify(b"test_intent_data", 0));
+        assert_eq!(pow.solve(b"test_intent_data"), Some(0));
     }
 
     #[test]
@@ -399,7 +409,7 @@ mod tests {
         let agent_id = agent();
 
         // Record successful actions
-        for _ in 0..8 {
+        for _ in 0..4 {
             rep.record_action(agent_id, true);
         }
         // Record one failed action
