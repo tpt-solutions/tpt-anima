@@ -17,3 +17,10 @@ tokio.workspace = true
 anima-sse = { path = "../anima-sse" }
 anima-inp = { path = "../anima-inp" }
 anima-edge-runtime = { path = "../anima-edge-runtime" }
+
+# aya is a pure-Rust eBPF library; it only makes sense (and only builds cleanly) on
+# Linux, which is the only platform with an eBPF verifier/loader in the kernel. Gating
+# it here keeps non-Linux builds (including this Windows dev machine) from ever
+# attempting to compile it.
+[target.'cfg(target_os = "linux")'.dependencies]
+aya = "0.14"

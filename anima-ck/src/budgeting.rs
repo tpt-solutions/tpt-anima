@@ -158,7 +158,11 @@ impl BudgetManager {
     /// Record a temperature reading for a specific hardware tier (CPU, GPU,
     /// or NPU). Each tier has its own thermal envelope in real hardware —
     /// a hot GPU die shouldn't throttle CPU-bound inference and vice versa.
-    pub fn update_unit_temperature(&mut self, unit: ComputeUnit, temp_celsius: f32) -> ThermalStatus {
+    pub fn update_unit_temperature(
+        &mut self,
+        unit: ComputeUnit,
+        temp_celsius: f32,
+    ) -> ThermalStatus {
         self.unit_temperatures.insert(unit, temp_celsius);
         self.unit_thermal_status(unit)
     }
@@ -171,7 +175,10 @@ impl BudgetManager {
             .get(&unit)
             .copied()
             .unwrap_or(self.current_temperature);
-        ThermalStatus::from_temperature(temp, self.total_budget.thermal_constraints.max_temp_celsius)
+        ThermalStatus::from_temperature(
+            temp,
+            self.total_budget.thermal_constraints.max_temp_celsius,
+        )
     }
 
     /// Throttle factor for a specific hardware tier, mirroring
@@ -425,7 +432,10 @@ mod tests {
         mgr.update_power_draw(300.0); // at max_power_watts
 
         let result = mgr.allocate_flops_constrained(ComputeUnit::GPU, 400, 50.0);
-        assert!(matches!(result, Err(BudgetError::PowerBudgetExceeded { .. })));
+        assert!(matches!(
+            result,
+            Err(BudgetError::PowerBudgetExceeded { .. })
+        ));
     }
 
     #[test]

@@ -37,6 +37,12 @@ pub enum InpEvent {
         intent_id: String,
         winner: String,
     },
+    /// A real compute-credit transfer recorded by INP's `ComputeLedger`.
+    CreditTransferred {
+        from: String,
+        to: String,
+        amount: f64,
+    },
 }
 
 /// Events from the Cognitive Kernel layer.
@@ -51,6 +57,15 @@ pub enum CkEvent {
     },
     ThoughtBubbleCreated {
         bubble_id: String,
+    },
+    /// Real hardware utilization sample, sourced from the CK JIT hardware
+    /// detector (see `anima-ck/src/jit/detection.rs`) rather than a random
+    /// generator.
+    HardwareUtilization {
+        gpu: f32,
+        cpu: f32,
+        npu: f32,
+        ram: f32,
     },
 }
 

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import type { SwarmMapData } from '../types';
+import type { SwarmMapViewData } from '../types';
 
 interface SwarmMapProps {
-  data: SwarmMapData;
+  data: SwarmMapViewData;
 }
 
 const STATUS_COLORS: Record<string, string> = {

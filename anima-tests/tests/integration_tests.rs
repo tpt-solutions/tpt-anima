@@ -705,8 +705,12 @@ fn sse_memory_integrity_with_zkpa_proof() {
         .generate_code_integrity_proof(&stored.payload_hash, &circuit)
         .unwrap();
     assert_eq!(proof.proof_type, "code_integrity");
-    // The public inputs should contain the payload hash.
-    assert_eq!(proof.public_inputs, stored.payload_hash.to_vec());
+    // This is a real Groth16 zk-SNARK: `public_inputs` holds a domain tag and
+    // a hash commitment, not the raw payload hash (that's the private
+    // witness — exposing it would defeat the zero-knowledge property). The
+    // integrity check that matters is that the proof cryptographically
+    // verifies against its own public inputs and verifying key.
+    gen.verify(&proof).expect("real ZK proof must verify");
 
     // Create a ZKPA session for the agent.
     let mut session_mgr = SessionManager::new();
@@ -1019,7 +1023,10 @@ fn sse_adversarial_self_loop_attack() {
     );
 
     // Should be rejected
-    assert!(matches!(result, Err(anima_sse::CausalError::SelfLoop { .. })));
+    assert!(matches!(
+        result,
+        Err(anima_sse::CausalError::SelfLoop { .. })
+    ));
     assert_eq!(graph.node_count(), 0, "self-loop should not register node");
 }
 
@@ -1086,7 +1093,7 @@ fn inp_adversarial_capability_spoofing() {
         PerformanceProfile {
             typical_latency: Duration::from_millis(1), // Unrealistically low
             max_latency: Duration::from_nanos(1),
-            typical_accuracy: 1.0, // Impossible accuracy
+            typical_accuracy: 1.0,              // Impossible accuracy
             throughput_per_second: 1_000_000.0, // Unrealistic throughput
         },
         EconomicTerms::FixedPrice { credits: 0.0001 }, // Tiny price
@@ -1107,7 +1114,11 @@ fn inp_adversarial_capability_spoofing() {
     );
 
     let providers = broadcaster.begin_broadcast(&intent, &registry);
-    assert_eq!(providers.len(), 2, "both legitimate and spoofed providers found");
+    assert_eq!(
+        providers.len(),
+        2,
+        "both legitimate and spoofed providers found"
+    );
 }
 
 #[test]
@@ -1120,9 +1131,9 @@ fn inp_adversarial_bid_manipulation_suspicious_values() {
         Uuid::new_v4(),
         inp_agent(),
         Uuid::new_v4(),
-        0.000001, // Suspiciously low cost
+        0.000001,                 // Suspiciously low cost
         Duration::from_millis(1), // Unrealistic latency
-        1.0, // Perfect accuracy
+        1.0,                      // Perfect accuracy
         0.99,
     );
 
@@ -1146,7 +1157,10 @@ fn inp_adversarial_bid_manipulation_suspicious_values() {
 
     // Suspicious bid should score well (would be preferred by naive selection)
     // This demonstrates need for bid validation/sanity checking
-    assert!(suspicious_score < normal_score, "suspicious bid has better score");
+    assert!(
+        suspicious_score < normal_score,
+        "suspicious bid has better score"
+    );
 }
 
 #[test]
@@ -1433,7 +1447,11 @@ fn inp_multi_node_distributed_negotiation() {
     }
 
     // All sessions should be removed after finalization
-    assert_eq!(manager.active_count(), 0, "all sessions should be cleaned up");
+    assert_eq!(
+        manager.active_count(),
+        0,
+        "all sessions should be cleaned up"
+    );
 }
 
 // ── (p) Causal graph scaling benchmark ────────────────────────────────────────
@@ -1457,11 +1475,7 @@ fn causal_graph_scaling_benchmark() {
             .add_link(
                 id,
                 next_id,
-                anima_sse::CausalLink::new(
-                    next_id,
-                    anima_sse::CausalLinkType::Caused,
-                    0.9,
-                ),
+                anima_sse::CausalLink::new(next_id, anima_sse::CausalLinkType::Caused, 0.9),
             )
             .ok();
     }

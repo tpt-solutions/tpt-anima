@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { SwarmMap } from './SwarmMap';
-import type { SwarmMapData } from '../types';
+import type { SwarmMapViewData } from '../types';
 
-const mockData: SwarmMapData = {
+const mockData: SwarmMapViewData = {
   nodes: [
     { id: 'agent-1', label: 'Agent Alpha', status: 'active', agentType: 'reasoner', x: 100, y: 100 },
     { id: 'agent-2', label: 'Agent Beta', status: 'idle', agentType: 'executor', x: 300, y: 200 },
@@ -39,7 +39,7 @@ describe('SwarmMap', () => {
   });
 
   it('renders empty state with no nodes', () => {
-    const emptyData: SwarmMapData = { nodes: [], edges: [], pulseEvents: [] };
+    const emptyData: SwarmMapViewData = { nodes: [], edges: [], pulseEvents: [] };
     render(<SwarmMap data={emptyData} />);
     expect(screen.getByText('Swarm Map — Intent Negotiation')).toBeInTheDocument();
     const canvas = document.querySelector('canvas');
@@ -47,7 +47,7 @@ describe('SwarmMap', () => {
   });
 
   it('renders with pulse events', () => {
-    const dataWithPulses: SwarmMapData = {
+    const dataWithPulses: SwarmMapViewData = {
       ...mockData,
       pulseEvents: [
         { source: 'agent-1', target: 'agent-2', intentId: 'intent-1', timestamp: Date.now(), won: true },

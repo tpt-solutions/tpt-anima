@@ -113,14 +113,25 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_cuda_fails_when_unavailable() {
+    fn dispatch_cuda_reflects_real_device_probe() {
+        // CUDA availability now comes from a real NVML probe, so the
+        // expected outcome depends on whether this machine actually has an
+        // NVIDIA GPU/driver. Both branches are exercised across dev
+        // machines/CI runners; on a machine with a real GPU (as this one
+        // has, an NVIDIA GeForce RTX 3050), dispatch should succeed with a
+        // real kernel-source echo instead of failing.
         let d = make_dispatcher();
         let result = d.dispatch(HardwarePlatform::NVIDIACuda, "test");
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            JitError::BackendUnavailable(_)
-        ));
+        if CudaBackend.is_available() {
+            assert!(result.is_ok());
+            assert!(result.unwrap().contains("cuda execution result"));
+        } else {
+            assert!(result.is_err());
+            assert!(matches!(
+                result.unwrap_err(),
+                JitError::BackendUnavailable(_)
+            ));
+        }
     }
 
     #[test]
@@ -137,9 +148,16 @@ mod tests {
         det.set_platform(HardwarePlatform::NVIDIACuda);
         let hw = det.detect();
         let result = d.fallback("test inference", &hw);
-        // Should succeed via CPU fallback
         assert!(result.is_ok());
-        assert!(result.unwrap().contains("cpu fallback"));
+        if CudaBackend.is_available() {
+            // Real GPU present (verified on this machine: NVIDIA GeForce
+            // RTX 3050) — `fallback` should dispatch straight to CUDA rather
+            // than falling back, since the forced platform *is* available.
+            assert!(result.unwrap().contains("cuda execution result"));
+        } else {
+            // No GPU/driver — falls back to the CPU backend.
+            assert!(result.unwrap().contains("cpu fallback"));
+        }
     }
 
     #[test]

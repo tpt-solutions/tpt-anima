@@ -1,18 +1,36 @@
-import type { TelemetryEvent, LayerCounts } from './types';
+import type {
+  BroadcastMessage,
+  LayerCounts,
+  MemoryTopoViewData,
+  PulseViewEvent,
+  SwarmMapViewData,
+  SwarmViewEdge,
+  SwarmViewNode,
+  TopoViewChain,
+  TopoViewNode,
+} from './types';
 
 const DEFAULT_API_BASE = 'http://localhost:9001';
 const DEFAULT_WS_URL = 'ws://localhost:9001';
 
-export function connectWebSocket(
-  url: string = DEFAULT_WS_URL,
-  onEvent: (event: TelemetryEvent) => void,
-): WebSocket {
+export interface WebSocketHandlers {
+  onMessage: (msg: BroadcastMessage) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
+  onError?: (ev: Event) => void;
+}
+
+/** Open a WebSocket connection to the observatory's real `/ws/telemetry` endpoint. */
+export function connectWebSocket(url: string = DEFAULT_WS_URL, handlers: WebSocketHandlers): WebSocket {
   const ws = new WebSocket(`${url}/ws/telemetry`);
 
+  ws.onopen = () => handlers.onOpen?.();
+  ws.onclose = () => handlers.onClose?.();
+  ws.onerror = (ev) => handlers.onError?.(ev);
   ws.onmessage = (msg) => {
     try {
-      const event = JSON.parse(msg.data) as TelemetryEvent;
-      onEvent(event);
+      const parsed = JSON.parse(msg.data) as BroadcastMessage;
+      handlers.onMessage(parsed);
     } catch {
       // malformed frame — ignore
     }
@@ -21,168 +39,126 @@ export function connectWebSocket(
   return ws;
 }
 
-export async function fetchRecentEvents(
-  url: string = DEFAULT_API_BASE,
-): Promise<TelemetryEvent[]> {
-  try {
-    const res = await fetch(`${url}/api/events/recent`);
-    if (!res.ok) return generateMockEvents();
-    return (await res.json()) as TelemetryEvent[];
-  } catch {
-    return generateMockEvents();
+/**
+ * Reconnect to the observatory WebSocket with capped exponential backoff.
+ * Returns a `close()` function that stops any pending reconnect attempts
+ * and closes the current socket.
+ */
+export function connectWithReconnect(
+  url: string = DEFAULT_WS_URL,
+  handlers: WebSocketHandlers,
+): { close: () => void } {
+  let stopped = false;
+  let socket: WebSocket | null = null;
+  let attempt = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const MAX_DELAY_MS = 15000;
+  const BASE_DELAY_MS = 500;
+
+  function scheduleReconnect() {
+    if (stopped) return;
+    const delay = Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS);
+    attempt += 1;
+    retryTimer = setTimeout(connect, delay);
   }
+
+  function connect() {
+    if (stopped) return;
+    socket = connectWebSocket(url, {
+      onMessage: handlers.onMessage,
+      onOpen: () => {
+        attempt = 0;
+        handlers.onOpen?.();
+      },
+      onClose: () => {
+        handlers.onClose?.();
+        scheduleReconnect();
+      },
+      onError: handlers.onError,
+    });
+  }
+
+  connect();
+
+  return {
+    close: () => {
+      stopped = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      socket?.close();
+    },
+  };
 }
 
-export async function fetchLayerCounts(
-  url: string = DEFAULT_API_BASE,
-): Promise<LayerCounts> {
+export async function fetchLayerCounts(url: string = DEFAULT_API_BASE): Promise<LayerCounts | null> {
   try {
-    const res = await fetch(`${url}/api/counts`);
-    if (!res.ok) return generateMockCounts();
+    const res = await fetch(`${url}/api/telemetry/count`);
+    if (!res.ok) return null;
     return (await res.json()) as LayerCounts;
   } catch {
-    return generateMockCounts();
+    return null;
   }
 }
 
-export async function fetchHealth(
-  url: string = DEFAULT_API_BASE,
-): Promise<{ status: string }> {
+export async function fetchHealth(url: string = DEFAULT_API_BASE): Promise<{ status: string } | null> {
   try {
-    const res = await fetch(`${url}/health`);
-    if (!res.ok) return { status: 'offline' };
+    const res = await fetch(`${url}/api/health`);
+    if (!res.ok) return null;
     return (await res.json()) as { status: string };
   } catch {
-    return { status: 'offline' };
+    return null;
   }
 }
 
-// --- Mock data generators for when backend is offline ---
+// ── View-model helpers ──────────────────────────────────────────────────
+// The backend has no notion of pixel layout, so positions are derived
+// deterministically from real node ids (a stable hash-based ring layout),
+// not randomly generated on every render.
 
-let mockId = 0;
-function nextId(): string {
-  mockId += 1;
-  return `mock-${mockId}`;
-}
+const LAYOUT_WIDTH = 600;
+const LAYOUT_HEIGHT = 400;
 
-function generateMockEvents(): TelemetryEvent[] {
-  const layers: Array<TelemetryEvent['layer']> = ['sse', 'inp', 'ck', 'zkpa'];
-  const events: TelemetryEvent[] = [];
-  for (let i = 0; i < 30; i++) {
-    const layer = layers[i % layers.length];
-    events.push({
-      type: `${layer}_telemetry`,
-      layer,
-      data: { msg: `sample event ${i}`, value: Math.random() * 100 },
-      timestamp: Date.now() - i * 1000,
-    });
+function hashToUnit(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return events;
+  return (h >>> 0) / 0xffffffff;
 }
 
-function generateMockCounts(): LayerCounts {
+function layoutPosition(id: string, index: number, total: number): { x: number; y: number } {
+  const angle = ((index / Math.max(total, 1)) * 2 + hashToUnit(id)) * Math.PI;
+  const radiusX = LAYOUT_WIDTH * 0.35;
+  const radiusY = LAYOUT_HEIGHT * 0.35;
   return {
-    sse: 1247,
-    inp: 893,
-    ck: 612,
-    zkpa: 2084,
-    total: 4836,
+    x: LAYOUT_WIDTH / 2 + Math.cos(angle) * radiusX,
+    y: LAYOUT_HEIGHT / 2 + Math.sin(angle) * radiusY,
   };
 }
 
-export function generateMockSwarmData(): import('./types').SwarmMapData {
-  const nodes: import('./types').SwarmNode[] = [
-    { id: 'n1', label: 'Planner-α', status: 'active', agentType: 'planner', x: 200, y: 120 },
-    { id: 'n2', label: 'Coder-β', status: 'busy', agentType: 'coder', x: 380, y: 80 },
-    { id: 'n3', label: 'Reviewer-γ', status: 'idle', agentType: 'reviewer', x: 500, y: 200 },
-    { id: 'n4', label: 'Researcher-δ', status: 'active', agentType: 'researcher', x: 320, y: 260 },
-    { id: 'n5', label: 'Executor-ε', status: 'busy', agentType: 'executor', x: 140, y: 240 },
-    { id: 'n6', label: 'Monitor-ζ', status: 'active', agentType: 'monitor', x: 460, y: 320 },
-  ];
-  const edges: import('./types').SwarmEdge[] = [
-    { source: 'n1', target: 'n2', weight: 0.9 },
-    { source: 'n1', target: 'n4', weight: 0.7 },
-    { source: 'n2', target: 'n3', weight: 0.5 },
-    { source: 'n3', target: 'n6', weight: 0.6 },
-    { source: 'n4', target: 'n5', weight: 0.8 },
-    { source: 'n5', target: 'n1', weight: 0.4 },
-    { source: 'n6', target: 'n2', weight: 0.3 },
-  ];
-  const pulseEvents: import('./types').PulseEvent[] = [
-    { source: 'n1', target: 'n2', intentId: 'INT-001', timestamp: Date.now() - 2000, won: true },
-    { source: 'n4', target: 'n5', intentId: 'INT-002', timestamp: Date.now() - 5000, won: true },
-    { source: 'n3', target: 'n6', intentId: 'INT-003', timestamp: Date.now() - 8000, won: false },
-  ];
-  return { nodes, edges, pulseEvents };
-}
-
-export function generateMockMemoryTopo(): import('./types').MemoryTopoData {
-  const modalities = ['text', 'visual', 'audio', 'text', 'visual', 'text'];
-  const labels = ['Core Memory', 'Skill Graph', 'Session Log', 'Embedding Index', 'Causal Chain', 'Decay Pool'];
-  const nodes: import('./types').TopoNode[] = modalities.map((m, i) => ({
-    id: `mem-${i}`,
-    strength: 0.2 + Math.random() * 0.8,
-    modality: m,
-    label: labels[i],
-    x: 60 + (i % 3) * 180 + Math.random() * 40,
-    y: 60 + Math.floor(i / 3) * 140 + Math.random() * 40,
+export function buildSwarmView(
+  nodes: { id: string; label: string; status: string; agent_type: string }[],
+  edges: SwarmViewEdge[],
+  pulseEvents: PulseViewEvent[],
+): SwarmMapViewData {
+  const positioned: SwarmViewNode[] = nodes.map((n, i) => ({
+    id: n.id,
+    label: n.label,
+    status: (n.status as SwarmViewNode['status']) ?? 'idle',
+    agentType: n.agent_type,
+    ...layoutPosition(n.id, i, nodes.length),
   }));
-  const chains: import('./types').TopoChain[] = [
-    { source: 'mem-0', target: 'mem-2', strength: 0.9 },
-    { source: 'mem-1', target: 'mem-3', strength: 0.6 },
-    { source: 'mem-2', target: 'mem-4', strength: 0.75 },
-    { source: 'mem-3', target: 'mem-5', strength: 0.5 },
-    { source: 'mem-0', target: 'mem-5', strength: 0.3 },
-  ];
-  return { nodes, chains };
+  return { nodes: positioned, edges, pulseEvents };
 }
 
-let _nextLedgerId = 0;
-export function generateMockLedger(): import('./types').LedgerEntry[] {
-  const eventTypes = ['session_created', 'delegation', 'revocation', 'attestation', 'proof_generated', 'heartbeat'];
-  const agentIds = ['agent-alpha', 'agent-beta', 'agent-gamma', 'agent-delta'];
-  const details = [
-    'Session credential issued for task T-42',
-    'Delegated authority to child agent',
-    'Revoked credential exp-2026-07',
-    'Hardware attestation passed (TPM 2.0)',
-    'ZK proof generated for integrity check',
-    'Liveness heartbeat recorded',
-  ];
-  const entries: import('./types').LedgerEntry[] = [];
-  for (let i = 0; i < 20; i++) {
-    _nextLedgerId += 1;
-    entries.push({
-      id: `ledger-${_nextLedgerId}`,
-      eventType: eventTypes[i % eventTypes.length],
-      agentId: agentIds[i % agentIds.length],
-      timestamp: Date.now() - i * 15000,
-      details: details[i % details.length],
-    });
-  }
-  return entries;
-}
-
-export function generateMockEconomicFlow(): { agents: { id: string; balance: number }[]; totalCirculation: number } {
-  const agents = [
-    { id: 'Planner-α', balance: 1240 },
-    { id: 'Coder-β', balance: 890 },
-    { id: 'Reviewer-γ', balance: 430 },
-    { id: 'Researcher-δ', balance: 1100 },
-    { id: 'Executor-ε', balance: 670 },
-    { id: 'Monitor-ζ', balance: 320 },
-  ];
-  const totalCirculation = agents.reduce((s, a) => s + a.balance, 0);
-  return { agents, totalCirculation };
-}
-
-export function generateMockInferencePulse(): { gpu: number; cpu: number; npu: number; ram: number; bubbles: number; queue: number } {
-  return {
-    gpu: 67 + Math.random() * 25,
-    cpu: 42 + Math.random() * 30,
-    npu: 20 + Math.random() * 40,
-    ram: 55 + Math.random() * 20,
-    bubbles: Math.floor(3 + Math.random() * 5),
-    queue: Math.floor(2 + Math.random() * 8),
-  };
+export function buildMemoryTopoView(
+  nodes: { id: string; strength: number; modality: string; label: string }[],
+  chains: TopoViewChain[],
+): MemoryTopoViewData {
+  const positioned: TopoViewNode[] = nodes.map((n, i) => ({
+    ...n,
+    ...layoutPosition(n.id, i, nodes.length),
+  }));
+  return { nodes: positioned, chains };
 }

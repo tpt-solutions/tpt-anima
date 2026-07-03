@@ -26,6 +26,17 @@
   white-space: nowrap;
 }
 
+/* --- Connection banner --- */
+.observatory-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--red);
+  color: var(--red);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  margin-bottom: 16px;
+}
+
 /* --- Grid --- */
 .observatory-grid {
   display: grid;

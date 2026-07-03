@@ -10,14 +10,15 @@
 //! - **Workload Translation**: Convert intercepted workloads to Anima intents
 //! - **Cross-tier Communication**: Forward to Tier 1 hypervisor or Tier 3 edge runtime
 
-#[cfg(target_os = "linux")]
+// The eBPF bytecode generators in `bpf` are pure data/encoding logic with no kernel
+// dependency, so the module builds and is tested on every platform. Only the actual
+// kernel *load* path (in `driver`) is gated to Linux, since that's the only OS with an
+// eBPF verifier/loader to call into.
 pub mod bpf;
 
 pub mod driver;
 
-pub use driver::{
-    CoProcessorConfig, CoProcessorError, WorkloadIntercept, WorkloadType,
-};
+pub use driver::{CoProcessorConfig, CoProcessorError, WorkloadIntercept, WorkloadType};
 
 /// Co-processor module for eBPF-based workload interception.
 #[derive(Debug, Clone)]
@@ -71,7 +72,9 @@ mod tests {
     fn co_processor_config_defaults() {
         let config = CoProcessorConfig::default();
         assert!(config.enabled);
-        assert!(config.workload_patterns.contains(&"inference.run".to_string()));
+        assert!(config
+            .workload_patterns
+            .contains(&"inference.run".to_string()));
     }
 
     #[test]
@@ -82,7 +85,7 @@ mod tests {
             "test-model".into(),
             serde_json::json!({"model_id": "gpt-4"}),
         );
-        
+
         let intent = intercept.to_intent().unwrap();
         assert_eq!(intent["action"], "inference.run");
         assert_eq!(intent["process_id"], 1234);
@@ -90,13 +93,9 @@ mod tests {
 
     #[test]
     fn workload_intercept_unknown_returns_none() {
-        let intercept = WorkloadIntercept::new(
-            WorkloadType::Unknown,
-            0,
-            "".into(),
-            serde_json::json!({}),
-        );
-        
+        let intercept =
+            WorkloadIntercept::new(WorkloadType::Unknown, 0, "".into(), serde_json::json!({}));
+
         assert!(intercept.to_intent().is_none());
     }
 

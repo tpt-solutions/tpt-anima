@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryTopography } from './MemoryTopography';
-import type { MemoryTopoData } from '../types';
+import type { MemoryTopoViewData } from '../types';
 
-const mockData: MemoryTopoData = {
+const mockData: MemoryTopoViewData = {
   nodes: [
     { id: 'node-1', strength: 0.8, modality: 'text', label: 'Memory A', x: 100, y: 100 },
     { id: 'node-2', strength: 0.5, modality: 'visual', label: 'Memory B', x: 300, y: 200 },
@@ -29,7 +29,7 @@ describe('MemoryTopography', () => {
   });
 
   it('renders empty data without errors', () => {
-    const emptyData: MemoryTopoData = { nodes: [], chains: [] };
+    const emptyData: MemoryTopoViewData = { nodes: [], chains: [] };
     render(<MemoryTopography data={emptyData} />);
     expect(screen.getByText('Memory Topography — Semantic State Engine')).toBeInTheDocument();
     const canvas = document.querySelector('canvas');

@@ -1,182 +1,212 @@
 //! Anima Observatory — real-time human telemetry window for TPT Anima.
 //!
-//! Translates machine-speed AI cognition into observable, auditable visualisations:
-//! Swarm Map, Memory Topography, Inference Pulse, Agency Ledger, Economic Flow.
+//! Starts a real HTTP + WebSocket server (see `server.rs`) and, once at
+//! startup, drives one genuine operation through each of the four Anima
+//! layers (SSE, INP, CK, ZKPA) via their real public APIs. The telemetry
+//! broadcast to the frontend is derived from the actual results of those
+//! calls (real strengths, real ids, real credit amounts) rather than from a
+//! random-number generator standing in for "the backend."
 
-use anima_observatory::{
-    LayerCounts, MemoryTopographyData, PulseEvent, SwarmMapData, SwarmNode, TelemetryCollector,
-    TelemetryEvent, TopoNode,
+use std::time::Duration;
+
+use uuid::Uuid;
+
+use anima_ck::scheduler::InferenceScheduler;
+use anima_ck::types::{
+    CircuitBreakerConfig, EvictionPolicy, Inference, InferencePriority, KVCacheConfig,
+    ResourceRequest,
 };
+use anima_inp::{
+    Capability, CapabilityRegistry, ComputeCredits, ComputeLedger, EconomicTerms,
+    PerformanceProfile,
+};
+use anima_sse::{InMemoryStorage, MemoryNode, SensoryModality, VectorEmbedding};
+use anima_zkpa::SessionManager;
 
-fn main() {
-    println!("Anima Observatory — starting (Phase 4 implementation)");
-    println!("Observatory server starting on ws://localhost:9001");
-    println!("HTTP API available at http://localhost:9001/api/...\n");
+use anima_observatory::{CkEvent, InpEvent, SseEvent, TelemetryEvent, TelemetryServer, ZkpaEvent};
+
+const OBSERVATORY_ADDR: &str = "127.0.0.1:9001";
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    println!("Anima Observatory — starting real-time telemetry server");
     println!("Collecting telemetry from SSE, INP, CK, and ZKPA layers...\n");
 
-    // ── Build a small Swarm Map ───────────────────────────────────────────────
-
-    let mut swarm = SwarmMapData::new();
-    swarm.add_node(SwarmNode {
-        id: "cog-1".into(),
-        label: "Cognitive Core".into(),
-        status: "active".into(),
-        agent_type: "cognitive".into(),
-    });
-    swarm.add_node(SwarmNode {
-        id: "relay-1".into(),
-        label: "Relay Agent".into(),
-        status: "active".into(),
-        agent_type: "relay".into(),
-    });
-    swarm.add_node(SwarmNode {
-        id: "zk-1".into(),
-        label: "Attestation Agent".into(),
-        status: "idle".into(),
-        agent_type: "zkpa".into(),
-    });
-
-    swarm.add_edge(anima_observatory::SwarmEdge {
-        source: "cog-1".into(),
-        target: "relay-1".into(),
-        weight: 0.9,
-    });
-    swarm.add_edge(anima_observatory::SwarmEdge {
-        source: "relay-1".into(),
-        target: "zk-1".into(),
-        weight: 0.6,
-    });
-
-    swarm.record_pulse(PulseEvent {
-        source: "cog-1".into(),
-        target: "relay-1".into(),
-        intent_id: "intent-001".into(),
-        timestamp: 1719763200,
-        won: true,
-    });
+    let server = TelemetryServer::new(256);
+    bootstrap_layers(&server).await;
 
     println!(
-        "Swarm Map: {} nodes, {} edges, {} pulses",
-        swarm.nodes.len(),
-        swarm.edges.len(),
-        swarm.pulse_events.len()
+        "Observatory HTTP+WS server listening on http://{OBSERVATORY_ADDR} \
+         (WebSocket at /ws/telemetry, REST at /api/health, /api/telemetry/recent, /api/telemetry/count)"
+    );
+    server.start(OBSERVATORY_ADDR).await
+}
+
+/// Perform one real operation against each of the four Anima layers and
+/// broadcast the resulting telemetry, deriving every field from the real
+/// return value of the underlying call rather than fabricating it.
+async fn bootstrap_layers(server: &TelemetryServer) {
+    sse_bootstrap(server).await;
+    let (requester_id, provider_id) = inp_bootstrap(server).await;
+    ck_bootstrap(server).await;
+    zkpa_bootstrap(server, requester_id).await;
+    let _ = provider_id;
+}
+
+async fn sse_bootstrap(server: &TelemetryServer) {
+    let mut storage = InMemoryStorage::new();
+
+    let mut node_id = [0u8; 32];
+    node_id[0] = 1;
+    let mut agent_id = [0u8; 32];
+    agent_id[0] = 9;
+
+    let mut node = MemoryNode::new(
+        node_id,
+        VectorEmbedding::new(vec![0.1, 0.2, 0.3, 0.4]),
+        b"Observatory bootstrap memory".to_vec(),
+        "text/plain".into(),
+        SensoryModality::Textual,
+        agent_id,
     );
 
-    // ── Build Memory Topography ───────────────────────────────────────────────
+    node.record_access(agent_id);
+    let strength_after_access = node.current_strength;
 
-    let mut topo = MemoryTopographyData::new();
-    topo.add_node(TopoNode {
-        id: "mem-1".into(),
-        strength: 0.95,
-        modality: "semantic".into(),
-        label: "Project Architecture".into(),
-    });
-    topo.add_node(TopoNode {
-        id: "mem-2".into(),
-        strength: 0.42,
-        modality: "procedural".into(),
-        label: "Build Commands".into(),
-    });
+    node.apply_decay_for(Duration::from_secs(3600));
+    let strength_after_decay = node.current_strength;
 
-    let (n_nodes, n_chains) = topo.summary();
-    println!(
-        "Memory Topography: {} nodes, {} chains\n",
-        n_nodes, n_chains
+    let node_id_str = hex_id(&node_id);
+    storage.write_node(node);
+
+    server
+        .record_and_broadcast(TelemetryEvent::SSE(SseEvent::MemoryAccessed {
+            node_id: node_id_str.clone(),
+            strength: strength_after_access,
+        }))
+        .await;
+    server
+        .record_and_broadcast(TelemetryEvent::SSE(SseEvent::DecayApplied {
+            node_id: node_id_str,
+            new_strength: strength_after_decay,
+        }))
+        .await;
+}
+
+/// Returns (requester_id, provider_id) so callers can reuse them.
+async fn inp_bootstrap(server: &TelemetryServer) -> (Uuid, Uuid) {
+    let mut registry = CapabilityRegistry::new();
+    let provider_id = Uuid::new_v4();
+    let requester_id = Uuid::new_v4();
+    let intent_id = Uuid::new_v4();
+
+    let capability = Capability::new(
+        vec!["analyze".into()],
+        PerformanceProfile {
+            typical_latency: Duration::from_millis(120),
+            max_latency: Duration::from_millis(500),
+            typical_accuracy: 0.94,
+            throughput_per_second: 12.0,
+        },
+        EconomicTerms::FixedPrice { credits: 4.0 },
+        provider_id,
     );
+    registry.register(capability);
 
-    // ── Record sample telemetry events ────────────────────────────────────────
-
-    let mut collector = TelemetryCollector::new();
-
-    collector.record(TelemetryEvent::SSE(
-        anima_observatory::SseEvent::MemoryAccessed {
-            node_id: "mem-1".into(),
-            strength: 0.95,
-        },
-    ));
-    collector.record(TelemetryEvent::SSE(
-        anima_observatory::SseEvent::MemoryPruned { count: 3 },
-    ));
-    collector.record(TelemetryEvent::SSE(
-        anima_observatory::SseEvent::DecayApplied {
-            node_id: "mem-2".into(),
-            new_strength: 0.38,
-        },
-    ));
-
-    collector.record(TelemetryEvent::INP(
-        anima_observatory::InpEvent::IntentBroadcast {
-            intent_id: "intent-001".into(),
+    server
+        .record_and_broadcast(TelemetryEvent::INP(InpEvent::IntentBroadcast {
+            intent_id: intent_id.to_string(),
             action: "analyze".into(),
-        },
-    ));
-    collector.record(TelemetryEvent::INP(
-        anima_observatory::InpEvent::BidReceived {
-            intent_id: "intent-001".into(),
-            provider_id: "cog-1".into(),
-        },
-    ));
-    collector.record(TelemetryEvent::INP(
-        anima_observatory::InpEvent::NegotiationCompleted {
-            intent_id: "intent-001".into(),
-            winner: "cog-1".into(),
-        },
-    ));
+        }))
+        .await;
 
-    collector.record(TelemetryEvent::CK(
-        anima_observatory::CkEvent::InferenceScheduled {
-            inference_id: "inf-001".into(),
-            priority: "high".into(),
-        },
-    ));
-    collector.record(TelemetryEvent::CK(
-        anima_observatory::CkEvent::ThoughtBubbleCreated {
-            bubble_id: "bubble-001".into(),
-        },
-    ));
-
-    collector.record(TelemetryEvent::ZKPA(
-        anima_observatory::ZkpaEvent::SessionCreated {
-            session_id: "sess-001".into(),
-            agent_id: "cog-1".into(),
-        },
-    ));
-    collector.record(TelemetryEvent::ZKPA(
-        anima_observatory::ZkpaEvent::AttestationVerified {
-            platform: "tee".into(),
-        },
-    ));
-    collector.record(TelemetryEvent::ZKPA(
-        anima_observatory::ZkpaEvent::LivenessHeartbeat {
-            agent_id: "cog-1".into(),
-            sequence: 42,
-        },
-    ));
-
-    // ── Print summary ─────────────────────────────────────────────────────────
-
-    let LayerCounts { sse, inp, ck, zkpa } = collector.count_by_layer();
-    println!("Telemetry Summary:");
-    println!("  Total events : {}", collector.events().len());
-    println!("  SSE events   : {}", sse);
-    println!("  INP events   : {}", inp);
-    println!("  CK events    : {}", ck);
-    println!("  ZKPA events  : {}", zkpa);
-    println!();
-
-    println!("Recent events (last 3):");
-    for ev in collector.recent_events(3) {
-        println!("  {:?}", ev);
+    let mut ledger = ComputeLedger::new();
+    if ledger
+        .mint(requester_id, ComputeCredits::new(100.0))
+        .is_ok()
+    {
+        if let Ok(tx) = ledger.transfer(
+            requester_id,
+            provider_id,
+            ComputeCredits::new(4.0),
+            intent_id,
+            "Observatory bootstrap task".into(),
+        ) {
+            server
+                .record_and_broadcast(TelemetryEvent::INP(InpEvent::NegotiationCompleted {
+                    intent_id: intent_id.to_string(),
+                    winner: provider_id.to_string(),
+                }))
+                .await;
+            server
+                .record_and_broadcast(TelemetryEvent::INP(InpEvent::CreditTransferred {
+                    from: tx.from_agent.to_string(),
+                    to: tx.to_agent.to_string(),
+                    amount: tx.amount.amount(),
+                }))
+                .await;
+        }
     }
 
-    // ── Show HTTP API response ────────────────────────────────────────────────
+    (requester_id, provider_id)
+}
 
-    if let Some(health) = anima_observatory::handle_request("/api/health", &collector) {
-        println!("\nHTTP API /api/health: {}", health);
-    }
-    if let Some(counts) = anima_observatory::handle_request("/api/telemetry/count", &collector) {
-        println!("HTTP API /api/telemetry/count: {}", counts);
-    }
+async fn ck_bootstrap(server: &TelemetryServer) {
+    let mut scheduler = InferenceScheduler::new();
 
-    println!("\nObservatory ready.");
+    let inference = Inference {
+        id: Uuid::new_v4(),
+        model_id: "anima-ck-bootstrap".into(),
+        resource_requirements: ResourceRequest {
+            cpu_cores: 4,
+            gpu_count: 0,
+            vram_mb: 0,
+            ram_mb: 2048,
+            nvme_gb: 0,
+        },
+        kv_cache_config: KVCacheConfig {
+            cache_size_tokens: 4096,
+            eviction_policy: EvictionPolicy::AttentionBased,
+            prefetch_depth: 2,
+        },
+        circuit_breaker_settings: CircuitBreakerConfig {
+            entropy_threshold: 0.85,
+            max_repetition_count: 5,
+            causal_violation_tolerance: 0,
+        },
+        priority: InferencePriority::Normal,
+    };
+
+    scheduler.submit(inference, 0.7);
+
+    if let Some(job) = scheduler.schedule_next() {
+        server
+            .record_and_broadcast(TelemetryEvent::CK(CkEvent::InferenceScheduled {
+                inference_id: job.inference.id.to_string(),
+                priority: job.inference.priority.to_string(),
+            }))
+            .await;
+    }
+}
+
+async fn zkpa_bootstrap(server: &TelemetryServer, requester_id: Uuid) {
+    let mut sessions = SessionManager::new();
+    let session = sessions.create_session(
+        requester_id,
+        "observatory-bootstrap".into(),
+        10.0,
+        Duration::from_secs(300),
+        None,
+    );
+
+    server
+        .record_and_broadcast(TelemetryEvent::ZKPA(ZkpaEvent::SessionCreated {
+            session_id: session.id.to_string(),
+            agent_id: session.agent_id.to_string(),
+        }))
+        .await;
+}
+
+fn hex_id(id: &[u8; 32]) -> String {
+    id.iter().map(|b| format!("{b:02x}")).collect()
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import type { MemoryTopoData } from '../types';
+import type { MemoryTopoViewData } from '../types';
 
 interface MemoryTopographyProps {
-  data: MemoryTopoData;
+  data: MemoryTopoViewData;
 }
 
 const MODALITY_COLORS: Record<string, string> = {

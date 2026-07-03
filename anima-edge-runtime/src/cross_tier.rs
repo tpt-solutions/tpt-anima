@@ -341,8 +341,13 @@ mod tests {
             memory_pressure: 0.0,
             active_intents: 0,
         });
-        let env = EnvelopeBuilder::new(Uuid::new_v4(), Tier::EdgeRuntime, Tier::CoreHypervisor, payload)
-            .build();
+        let env = EnvelopeBuilder::new(
+            Uuid::new_v4(),
+            Tier::EdgeRuntime,
+            Tier::CoreHypervisor,
+            payload,
+        )
+        .build();
         assert!(validate_envelope(&env).is_ok());
     }
 
@@ -354,8 +359,13 @@ mod tests {
             memory_pressure: 0.0,
             active_intents: 0,
         });
-        let mut env = EnvelopeBuilder::new(Uuid::new_v4(), Tier::EdgeRuntime, Tier::CoreHypervisor, payload)
-            .build();
+        let mut env = EnvelopeBuilder::new(
+            Uuid::new_v4(),
+            Tier::EdgeRuntime,
+            Tier::CoreHypervisor,
+            payload,
+        )
+        .build();
         env.tier_route.hop_count = 10;
         env.tier_route.max_hops = 8;
         assert!(validate_envelope(&env).is_err());
@@ -415,7 +425,13 @@ mod tests {
             causal_checksum: [0u8; 32],
         };
         let payload = CrossTierPayload::MemorySync(msg);
-        let env = EnvelopeBuilder::new(Uuid::new_v4(), Tier::CoreHypervisor, Tier::EdgeRuntime, payload).build();
+        let env = EnvelopeBuilder::new(
+            Uuid::new_v4(),
+            Tier::CoreHypervisor,
+            Tier::EdgeRuntime,
+            payload,
+        )
+        .build();
         let bytes = serialize_envelope(&env).unwrap();
         let recovered = deserialize_envelope(&bytes).unwrap();
         match recovered.payload {
@@ -441,7 +457,13 @@ mod tests {
             origin_tier: Tier::EdgeRuntime,
         };
         let payload = CrossTierPayload::IntentForward(msg);
-        let env = EnvelopeBuilder::new(Uuid::new_v4(), Tier::EdgeRuntime, Tier::CoProcessor, payload).build();
+        let env = EnvelopeBuilder::new(
+            Uuid::new_v4(),
+            Tier::EdgeRuntime,
+            Tier::CoProcessor,
+            payload,
+        )
+        .build();
         let bytes = serialize_envelope(&env).unwrap();
         let recovered = deserialize_envelope(&bytes).unwrap();
         match recovered.payload {

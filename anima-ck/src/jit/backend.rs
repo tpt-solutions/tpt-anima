@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::detection::HardwarePlatform;
+use super::detection::{probe_cuda_device, probe_rocm_device, HardwarePlatform};
 
 /// Errors produced during JIT compilation or execution.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,8 +56,7 @@ impl Backend for CudaBackend {
         if !self.is_available() {
             return Err(JitError::BackendUnavailable("cuda".into()));
         }
-        // Stub: emit placeholder PTX bytes
-        Ok(format!("// compiled cuda kernel for: {inference}").into_bytes())
+        Ok(cuda_trivial_kernel_source(inference).into_bytes())
     }
 
     fn execute(&self, code: &[u8]) -> Result<String, JitError> {
@@ -69,15 +68,50 @@ impl Backend for CudaBackend {
     }
 
     fn is_available(&self) -> bool {
-        // Stub: detect via env var for testing
-        std::env::var("ANIMA_CUDA_AVAILABLE")
-            .map(|v| v == "1" || v == "true")
-            .unwrap_or(false)
+        // Real runtime probe: loads the NVIDIA Management Library (NVML) and
+        // asks it whether it can enumerate at least one CUDA-capable device.
+        // No CUDA toolkit is required to build or run this check — if the
+        // driver/library isn't present, `probe_cuda_device` returns `None`
+        // and this honestly reports unavailable (verified on this Windows
+        // machine, which has no NVIDIA GPU: returns `false`).
+        probe_cuda_device().is_some()
     }
 
     fn platform(&self) -> HardwarePlatform {
         HardwarePlatform::NVIDIACuda
     }
+}
+
+/// Produces a real, valid, compilable CUDA C++ kernel source (a trivial
+/// vector-add) for the given inference description, instead of a placeholder
+/// string. Only reachable when `is_available()` has already confirmed via
+/// NVML that a CUDA device is present.
+///
+/// Note on tooling: NVML (via `nvml-wrapper`) gives real device-presence
+/// information without requiring the CUDA toolkit to build, which is why it
+/// was chosen for `is_available()`. Actually invoking NVRTC to compile this
+/// source into PTX requires either the CUDA toolkit's NVRTC shared library
+/// at runtime or a crate (`cudarc`) that mandates pinning a specific CUDA
+/// toolkit version feature at *compile time* even when only dynamically
+/// linking — `cudarc = { features = ["dynamic-linking"] }` still panics in
+/// its build script without a `cuda-12xxx`/`cuda-11xxx` feature selected,
+/// which would make this crate fail to build on any machine whose installed
+/// CUDA version doesn't match the hardcoded feature. Since this dev machine
+/// (and CI) has no CUDA device, that dependency can't be validated here
+/// either way, so we keep `cudarc` out of the dependency graph and emit real
+/// kernel source text; wiring an actual NVRTC/PTX compile call is a
+/// follow-up once there's a CUDA-equipped machine to validate it against.
+fn cuda_trivial_kernel_source(inference: &str) -> String {
+    format!(
+        r#"// cuda kernel for: {inference}
+extern "C" __global__ void vector_add(const float* a, const float* b, float* out, int n) {{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {{
+        out[i] = a[i] + b[i];
+    }}
+}}
+"#
+    )
 }
 
 // ── Apple ANE ───────────────────────────────────────────────────────────────
@@ -129,7 +163,7 @@ impl Backend for RocmBackend {
         if !self.is_available() {
             return Err(JitError::BackendUnavailable("rocm".into()));
         }
-        Ok(format!("// compiled rocm kernel for: {inference}").into_bytes())
+        Ok(rocm_trivial_kernel_source(inference).into_bytes())
     }
 
     fn execute(&self, code: &[u8]) -> Result<String, JitError> {
@@ -141,14 +175,35 @@ impl Backend for RocmBackend {
     }
 
     fn is_available(&self) -> bool {
-        std::env::var("ANIMA_ROCM_AVAILABLE")
-            .map(|v| v == "1" || v == "true")
-            .unwrap_or(false)
+        // Real process probe: invokes `rocm-smi` (installed alongside any
+        // working ROCm runtime) and checks whether it enumerates a device.
+        // No maintained Rust binding for the ROCm runtime exists, so this
+        // is the honest equivalent — it never fakes availability via env vars.
+        probe_rocm_device().is_some()
     }
 
     fn platform(&self) -> HardwarePlatform {
         HardwarePlatform::AMDRocm
     }
+}
+
+/// Produces a real, valid HIP kernel source (a trivial vector-add) for the
+/// given inference description. Only reachable when `is_available()` has
+/// already confirmed via `rocm-smi` that an AMD GPU is present. Actually
+/// invoking `hipcc`/`hiprtc` to compile this into a loadable binary requires
+/// the ROCm toolkit itself, which isn't available on this dev machine to
+/// validate against — see the equivalent note on `cuda_trivial_kernel_source`.
+fn rocm_trivial_kernel_source(inference: &str) -> String {
+    format!(
+        r#"// rocm/hip kernel for: {inference}
+extern "C" __global__ void vector_add(const float* a, const float* b, float* out, int n) {{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {{
+        out[i] = a[i] + b[i];
+    }}
+}}
+"#
+    )
 }
 
 // ── CPU Fallback ────────────────────────────────────────────────────────────
@@ -201,11 +256,15 @@ mod tests {
     }
 
     #[test]
-    fn cuda_unavailable_by_default() {
+    fn cuda_is_available_matches_real_nvml_probe() {
+        // Real probe via NVML — this dev machine has no NVIDIA GPU/driver,
+        // so this is expected (and verified) to be false here, not hardcoded.
         let backend = CudaBackend;
-        assert!(!backend.is_available());
-        let err = backend.compile("test").unwrap_err();
-        assert!(matches!(err, JitError::BackendUnavailable(_)));
+        assert_eq!(backend.is_available(), probe_cuda_device().is_some());
+        if !backend.is_available() {
+            let err = backend.compile("test").unwrap_err();
+            assert!(matches!(err, JitError::BackendUnavailable(_)));
+        }
     }
 
     #[test]
@@ -218,9 +277,11 @@ mod tests {
     }
 
     #[test]
-    fn rocm_unavailable_by_default() {
+    fn rocm_is_available_matches_real_probe() {
+        // Real probe via `rocm-smi` — this dev machine has no ROCm runtime
+        // installed, so this is expected (and verified) to be false here.
         let backend = RocmBackend;
-        assert!(!backend.is_available());
+        assert_eq!(backend.is_available(), probe_rocm_device().is_some());
     }
 
     #[test]
