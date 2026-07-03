@@ -9,6 +9,54 @@ Anima natively implements the [Model Context Protocol (MCP)](https://github.com/
 
 ---
 
+## Use it in your project
+
+Not yet published to crates.io — add it as a git dependency:
+
+```toml
+[dependencies]
+anima-sse  = { git = "https://github.com/PhillipC05/tpt-anima" }
+anima-inp  = { git = "https://github.com/PhillipC05/tpt-anima" }
+anima-ck   = { git = "https://github.com/PhillipC05/tpt-anima" }
+anima-zkpa = { git = "https://github.com/PhillipC05/tpt-anima" }
+```
+
+The smallest possible example — ingest a memory into the Semantic State Engine and watch it decay and reinforce:
+
+```rust
+use std::time::Duration;
+use anima_sse::{InMemoryStorage, MemoryNode, SensoryModality, VectorEmbedding};
+
+let mut storage = InMemoryStorage::new();
+let mut node = MemoryNode::new(
+    [1u8; 32],
+    VectorEmbedding::new(vec![0.12, 0.44, -0.08, 0.91]),
+    b"The capital of France is Paris.".to_vec(),
+    "text/plain".into(),
+    SensoryModality::Textual,
+    [9u8; 32],
+);
+
+node.apply_decay_for(Duration::from_secs(24 * 3600)); // strength decays exponentially
+node.record_access([9u8; 32]);                        // ...and reinforces on access
+
+storage.write_node(node);
+```
+
+### Runnable examples
+
+Each core crate ships a self-contained, working example:
+
+| Crate | Command | What it shows |
+|-------|---------|----------------|
+| `anima-sse` | `cargo run -p anima-sse --example memory_lifecycle` | Ingest → decay → reinforce → prune a memory node |
+| `anima-inp` | `cargo run -p anima-inp --example negotiation_swarm` | Broadcast an intent, collect competing bids, transfer compute credits |
+| `anima-ck` | `cargo run -p anima-ck --example inference_scheduling` | Attention-weight preemption in the inference scheduler + a `ThoughtBubble` sandbox |
+| `anima-zkpa` | `cargo run -p anima-zkpa --example session_and_attestation` | Ephemeral session, real ZK proof generation/verification, hash-chained liveness |
+| `anima-observatory` | `cargo run -p anima-observatory --example full_stack_quickstart` | Golden path across all four layers in one request: memory → negotiation → session → thermal budget check |
+
+---
+
 ## Getting Started
 
 **Is there a GUI?** Yes — the **Anima Observatory** (see below), a real-time dashboard that visualizes what the four layers are doing.

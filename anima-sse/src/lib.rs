@@ -2,6 +2,31 @@
 //!
 //! Stores data as unified semantic tensors with native temporal dynamics,
 //! causal topology, and multi-modal sensory ingestion.
+//!
+//! ```
+//! use std::time::Duration;
+//! use anima_sse::{InMemoryStorage, MemoryNode, SensoryModality, VectorEmbedding};
+//!
+//! let mut storage = InMemoryStorage::new();
+//! let mut node = MemoryNode::new(
+//!     [1u8; 32],
+//!     VectorEmbedding::new(vec![0.12, 0.44, -0.08, 0.91]),
+//!     b"The capital of France is Paris.".to_vec(),
+//!     "text/plain".into(),
+//!     SensoryModality::Textual,
+//!     [9u8; 32],
+//! );
+//!
+//! // Memory is attended, not queried: strength decays exponentially over time...
+//! node.apply_decay_for(Duration::from_secs(24 * 3600));
+//! // ...and is reinforced when accessed again.
+//! node.record_access([9u8; 32]);
+//!
+//! storage.write_node(node);
+//! assert_eq!(storage.node_count(), 1);
+//! ```
+//!
+//! See `examples/memory_lifecycle.rs` for the full walkthrough with decay output.
 
 pub mod causal_graph;
 pub mod decay;

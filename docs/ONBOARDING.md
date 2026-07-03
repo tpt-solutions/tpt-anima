@@ -122,6 +122,10 @@ rand = "0.8"
 
 Note: SSE's `AgentId`/`MemoryId` are raw `[u8; 32]`, while INP's and ZKPA's `AgentId` is a `Uuid` — this is intentional per-crate type isolation (see `CLAUDE.md`), not an oversight, so the two id kinds below are deliberately separate values.
 
+For a compiling, runnable version of this same walkthrough, see
+`anima-observatory/examples/full_stack_quickstart.rs`
+(`cargo run -p anima-observatory --example full_stack_quickstart`).
+
 ```rust
 use anima_sse::{MemoryNode, VectorEmbedding, SensoryModality};
 use anima_inp::{
@@ -145,8 +149,8 @@ let session = sessions.create_session(
 );
 
 // 2. Store a memory in SSE (uses SSE's own [u8; 32] id space)
-let node_id: anima_sse::MemoryId = rand::random();
-let sse_agent_id: anima_sse::AgentId = rand::random();
+let node_id: anima_sse::MemoryId = [1u8; 32];
+let sse_agent_id: anima_sse::AgentId = [2u8; 32];
 let memory = MemoryNode::new(
     node_id,
     VectorEmbedding::new(vec![0.5, 0.3, 0.2]),
@@ -211,26 +215,31 @@ let intent = Intent::new(
 
 ```rust
 // Instead of: SELECT * FROM memory WHERE id = ?
-// Use: Attend to the most relevant memories
-let relevant = storage.attention_retrieve(count: 10);
+// Use: Attend to the most relevant memories, ranked by current strength
+let relevant: Vec<&anima_sse::MemoryNode> = storage.attention_retrieve(10);
 ```
 
 ### Intent Negotiation Pattern
 
 ```rust
 // Instead of: POST /api/endpoint
-// Use: Broadcast an intent and let providers compete
-let intent = Intent::new(action, payload, qos, economic_terms, agent);
-broadcast.send(intent).await?;
-let result = await negotiation_result().await?;
+// Use: Broadcast an intent, collect bids, and pick a winner — all synchronous,
+// no HTTP round-trip. See examples/negotiation_swarm.rs (anima-inp) for the
+// full flow including a ComputeLedger credit transfer.
+let mut session = anima_inp::NegotiationSession::new(intent);
+session.start_broadcasting();
+session.start_collecting();
+session.add_bid(bid);
+let winner = session.bids.iter().max_by(|a, b| a.estimated_accuracy.total_cmp(&b.estimated_accuracy));
 ```
 
 ### Compute-Aware Pattern
 
 ```rust
-// Check hardware before scheduling large inference
-let hw_status = ck.hardware_status();
-if hw_status.temperature > 80.0 {
+// Check hardware thermal status before scheduling large inference
+use anima_ck::budgeting::ThermalStatus;
+
+if matches!(budget_manager.thermal_status(), ThermalStatus::Hot | ThermalStatus::Critical) {
     // Defer or reduce precision
 }
 ```

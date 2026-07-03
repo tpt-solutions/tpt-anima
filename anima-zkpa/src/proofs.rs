@@ -241,8 +241,8 @@ impl ProofGenerator {
         })
     }
 
-    /// Verify a `ZKProof` produced by [`Self::generate`] (or any of the
-    /// `generate_*` methods below). Returns `Ok(())` only if the proof is
+    /// Verify a `ZKProof` produced by any of this type's `generate_*`
+    /// methods. Returns `Ok(())` only if the proof is
     /// cryptographically valid against its embedded public inputs and
     /// verifying key — a corrupted proof or a mismatched/tampered public
     /// input will return `Err`.

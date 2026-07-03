@@ -14,7 +14,7 @@ use crate::memory_node::{SensoryModality, SseError, VectorEmbedding};
 ///
 /// Cameras, microphones, LiDAR, and other sensors implement this trait
 /// to convert raw sensory data into vector embeddings that can be stored
-/// as [`MemoryNode`]s.
+/// as [`MemoryNode`](crate::memory_node::MemoryNode)s.
 pub trait SensoryIngestionInterface {
     /// The type of raw data this sensor produces.
     type RawData;

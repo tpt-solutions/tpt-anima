@@ -18,7 +18,7 @@ version      = "0.1.0"
 edition      = "2021"
 license      = "Apache-2.0"
 authors      = ["TPT Solutions <open-source@tptsolutions.io>"]
-repository   = "https://github.com/tpt-solutions/tpt-anima"
+repository   = "https://github.com/PhillipC05/tpt-anima"
 rust-version = "1.80"
 
 [workspace.dependencies]
