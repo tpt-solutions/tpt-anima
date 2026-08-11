@@ -1,7 +1,7 @@
 # tpt-anima-zkpa
 
 **Zero-Knowledge Proof of Agency (ZKPA)** — the immune system of
-[TPT Anima](https://github.com/PhillipC05/tpt-anima).
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 > *Identity is ephemeral and provable.*
 
@@ -27,7 +27,7 @@ heartbeats** form a tamper-evident hash chain.
 
 ```toml
 [dependencies]
-tpt-anima-zkpa = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-zkpa = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -89,4 +89,4 @@ hash-chained liveness heartbeat into the `AgencyLedger`.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

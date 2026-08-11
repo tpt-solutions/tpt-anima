@@ -1,6 +1,6 @@
 #!/bin/bash
 # Anima Core Hypervisor Installation Script (Linux - Bare Metal Boot)
-# Copyright TPT Solutions — Apache License 2.0
+# Copyright TPT Solutions — Dual-licensed under MIT or Apache-2.0
 
 set -e
 

@@ -1,6 +1,6 @@
 # tpt-anima-sse
 
-**Semantic State Engine (SSE)** — the memory substrate of [TPT Anima](https://github.com/PhillipC05/tpt-anima).
+**Semantic State Engine (SSE)** — the memory substrate of [TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 > *Memory is attended, not queried.*
 
@@ -27,7 +27,7 @@ Not yet published to crates.io — add it as a git or path dependency:
 
 ```toml
 [dependencies]
-tpt-anima-sse = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-sse = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -84,4 +84,4 @@ the resulting strength curve.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

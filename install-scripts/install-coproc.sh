@@ -1,6 +1,6 @@
 #!/bin/bash
 # Anima Co-Processor Installation Script (Linux)
-# Copyright TPT Solutions — Apache License 2.0
+# Copyright TPT Solutions — Dual-licensed under MIT or Apache-2.0
 
 set -e
 

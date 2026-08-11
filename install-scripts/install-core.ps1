@@ -1,5 +1,5 @@
 # Anima Core Hypervisor Installation Script (Windows)
-# Copyright TPT Solutions — Apache License 2.0
+# Copyright TPT Solutions — Dual-licensed under MIT or Apache-2.0
 
 param(
     [switch]$Uninstall = $false,

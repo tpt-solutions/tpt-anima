@@ -1,6 +1,6 @@
 # tpt-anima-tests
 
-**Integration test suite** for the [TPT Anima](https://github.com/PhillipC05/tpt-anima)
+**Integration test suite** for the [TPT Anima](https://github.com/tpt-solutions/tpt-anima)
 workspace.
 
 This crate is **not published** (`publish = false`). It exercises the real public APIs
@@ -36,4 +36,4 @@ Pulls in `tpt-anima-sse`, `tpt-anima-inp`, `tpt-anima-ck`, `tpt-anima-zkpa`, and
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

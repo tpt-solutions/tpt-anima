@@ -1,6 +1,6 @@
 # TPT Anima — Demo Scenarios
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 This document describes three demo walkthroughs for the TPT Anima Observatory.
 

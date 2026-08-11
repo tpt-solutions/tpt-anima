@@ -17,4 +17,4 @@ and this crate adheres to Semantic Versioning.
 - Crate renamed from `anima-tests` to `tpt-anima-tests` (prefix + directory).
 - Added `keywords` and `categories` crate metadata.
 
-[0.1.0]: https://github.com/PhillipC05/tpt-anima/releases/tag/v0.1.0
+[0.1.0]: https://github.com/tpt-solutions/tpt-anima/releases/tag/v0.1.0

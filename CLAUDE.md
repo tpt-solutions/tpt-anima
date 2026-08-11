@@ -40,7 +40,7 @@ tpt-anima-ck         — Cognitive Kernel         (inference scheduler / brainst
 tpt-anima-zkpa       — Zero-Knowledge Proof of Agency (identity / immune system)
 
 tpt-anima-edge-gateway  — INP ↔ MCP/A2A JSON translation for external agents
-tpt-anima-observatory   — Real-time telemetry backend (Phase 4, stub)
+tpt-anima-observatory   — Real-time telemetry backend
 ```
 
 ### Layer 1 — SSE (`tpt-anima-sse`)
@@ -67,11 +67,11 @@ The immune system. `SessionCredential` is task-scoped and time-limited — no pe
 
 The brainstem. Fundamental unit of compute is an `Inference`, not a thread. `InferenceScheduler` uses attention-weight preemption (highest-weight inference wins, not round-robin). `MemoryFabric` abstracts VRAM/RAM/NVMe into a single address space with page-in/page-out and predictive prefetch. `CircuitBreaker` monitors output entropy and repetition loops, halting and rolling back inferences that violate causal integrity (integrates with SSE's `validate_causal_integrity()`). `ThoughtBubble` provides cryptographically isolated sandboxes; compromised bubbles are quarantined without halting the scheduler.
 
-`tpt-anima-ck/src/jit/` is declared in `lib.rs` but not yet implemented — the JIT hardware-fluid engine (hardware detection + CUDA/ANE/CPU backends) is Phase 3 work in progress.
+`tpt-anima-ck/src/jit/` implements the JIT hardware-fluid engine: hardware detection (`detection.rs`) and backend dispatch (`dispatch.rs`, `backend.rs`) for CUDA/ANE/CPU. The CoreML/ANE backend still emits placeholder bytes (`backend.rs`) — real codegen for that path is the one remaining gap.
 
 ### Edge Gateway (`tpt-anima-edge-gateway`)
 
-Translates native INP to/from MCP and A2A JSON for external agent interop. Keeps the internal substrate free of HTTP/JSON. Currently a stub — Phase 2 implementation pending.
+Translates native INP to/from MCP and A2A JSON for external agent interop. Keeps the internal substrate free of HTTP/JSON. Implemented, with a CLI entry point and test coverage.
 
 ## Key Cross-Layer Relationships
 

@@ -28,6 +28,7 @@
 //!
 //! See `examples/memory_lifecycle.rs` for the full walkthrough with decay output.
 
+pub mod ann;
 pub mod causal_graph;
 pub mod decay;
 pub mod ledger;
@@ -50,3 +51,4 @@ pub use mcp::{
 };
 pub use sensory::{SensoryError, SensoryIngestionInterface, SensoryManager};
 pub use storage::InMemoryStorage;
+pub use ann::AnnIndex;

@@ -11,7 +11,7 @@ use tpt_anima_core_hypervisor::{AnimaHypervisor, HypervisorConfig, VMConfig};
 
 fn main() {
     println!("Anima Core Hypervisor v0.1.0");
-    println!("TPT Solutions — Apache License 2.0\n");
+    println!("TPT Solutions — Dual-licensed under MIT or Apache-2.0\n");
 
     // Initialize hypervisor with default configuration
     let config = HypervisorConfig::default();

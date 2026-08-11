@@ -15,10 +15,10 @@ Not yet published to crates.io — add it as a git dependency:
 
 ```toml
 [dependencies]
-tpt-anima-sse  = { git = "https://github.com/PhillipC05/tpt-anima" }
-tpt-anima-inp  = { git = "https://github.com/PhillipC05/tpt-anima" }
-tpt-anima-ck   = { git = "https://github.com/PhillipC05/tpt-anima" }
-tpt-anima-zkpa = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-sse  = { git = "https://github.com/tpt-solutions/tpt-anima" }
+tpt-anima-inp  = { git = "https://github.com/tpt-solutions/tpt-anima" }
+tpt-anima-ck   = { git = "https://github.com/tpt-solutions/tpt-anima" }
+tpt-anima-zkpa = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 The smallest possible example — ingest a memory into the Semantic State Engine and watch it decay and reinforce:
@@ -159,6 +159,7 @@ A **JIT Hardware-Fluid Engine** detects the available silicon (Apple ANE, NVIDIA
 |-----|---------|
 | [docs/API.md](docs/API.md) | API reference across all four layers |
 | [docs/ONBOARDING.md](docs/ONBOARDING.md) | Beta onboarding guide |
+| [DEMO_SCENARIOS.md](DEMO_SCENARIOS.md) | Walkthrough scenarios for demoing the stack end-to-end |
 | [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) | Detection signals, severity classification, and response procedure per layer |
 | [docs/compliance/SOC2.md](docs/compliance/SOC2.md) | SOC 2 Type II control mapping and certification prep |
 | [docs/compliance/HIPAA.md](docs/compliance/HIPAA.md) | HIPAA technical-safeguards mapping and deployer responsibilities |
@@ -173,6 +174,6 @@ self-certify.
 
 ## License & Attribution
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+This project is dual-licensed under your choice of the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE).
 
-This project implements the *semantics* of MCP (MIT, Anthropic) and A2A (Apache 2.0, Google). No source code from those projects is copied; only their conceptual interfaces are implemented from scratch in Rust. Full attribution is included in the LICENSE file.
+This project implements the *semantics* of MCP (MIT, Anthropic) and A2A (Apache 2.0, Google). No source code from those projects is copied; only their conceptual interfaces are implemented from scratch in Rust. Full attribution is included in the [LICENSE](LICENSE) file.

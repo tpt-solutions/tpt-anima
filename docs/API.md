@@ -1,6 +1,6 @@
 # TPT Anima API Documentation
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 ## Overview
 

@@ -1,7 +1,7 @@
 # tpt-anima-inp
 
 **Intent & Negotiation Protocol (INP)** — the nervous system of
-[TPT Anima](https://github.com/PhillipC05/tpt-anima).
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 > *Agents pursue outcomes, not endpoints.*
 
@@ -29,7 +29,7 @@ agent attendance.
 
 ```toml
 [dependencies]
-tpt-anima-inp = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-inp = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -106,4 +106,4 @@ credit transfer.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

@@ -1,7 +1,7 @@
 # tpt-anima-edge-runtime
 
 **Tier 3 Edge Runtime** — lightweight SSE + INP for phones, IoT, and browsers, part of
-[TPT Anima](https://github.com/PhillipC05/tpt-anima).
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 The Edge Runtime brings the Anima stack to resource-constrained devices. It provides a
 minimal memory store and intent handler coordinated by a small runtime, plus the
@@ -21,7 +21,7 @@ Co-Processor, and Edge Runtime nodes.
 
 ```toml
 [dependencies]
-tpt-anima-edge-runtime = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-edge-runtime = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -54,4 +54,4 @@ assert!(result.is_ok());
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

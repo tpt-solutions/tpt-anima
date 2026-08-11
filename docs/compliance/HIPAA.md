@@ -1,6 +1,6 @@
 # HIPAA Compliance Review
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 TPT Anima is infrastructure — a memory substrate, agent negotiation
 protocol, inference scheduler, and identity/audit layer. It does not itself

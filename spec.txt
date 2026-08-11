@@ -1,7 +1,7 @@
 TPT Anima: The AI-Native Computational Stack
 System Architecture Design Document v3.0
 Status: Production Blueprint
-License: Apache License 2.0 (with MIT attribution for MCP protocol concepts)
+License: Dual-licensed under MIT or Apache-2.0 (with MIT attribution for MCP protocol concepts)
 Codename: Anima (Latin: soul, breath, life)
 1. Executive Summary
 TPT Anima is a zero-legacy, four-layer computational stack rebuilt from first principles for the era of autonomous AI. It abandons the deterministic, human-centric paradigms of the past (REST APIs, SQL databases, OAuth authentication, thread-based operating systems) in favor of a living, probabilistic, and self-defending software environment.

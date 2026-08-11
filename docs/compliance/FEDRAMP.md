@@ -1,6 +1,6 @@
 # FedRAMP Authorization — Preparation Notes
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 FedRAMP authorization applies to a cloud *service offering*, not to a
 library/workspace in isolation. These notes prepare TPT Anima's control

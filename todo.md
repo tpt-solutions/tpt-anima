@@ -1,5 +1,5 @@
 # TPT Anima — Master Task Checklist
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 > Phases follow the spec roadmap (Months 1–16)
 
 ---
@@ -7,7 +7,7 @@
 ## Phase 0 — Project Scaffold
 
 - [x] Initialize Cargo workspace (`Cargo.toml` with all crate members)
-- [x] Create `LICENSE` file (Apache 2.0, copyright TPT Solutions, with MIT attribution for MCP/A2A protocol concepts)
+- [x] Create `LICENSE-MIT` and `LICENSE-APACHE` files (dual MIT OR Apache-2.0, copyright TPT Solutions); `LICENSE` holds the dual-license notice and third-party attributions
 - [x] Create `README.md` with project overview and layer summary
 - [x] Create workspace `rustfmt.toml` formatting config
 - [x] Add `.gitignore` for Rust/IDE artifacts
@@ -350,3 +350,45 @@
 - [ ] Tag and publish v1.0 release (requires explicit user sign-off — release/push action)
 - [ ] Set up production monitoring and alerting (requires real hosting/infra — not code-doable in this repo)
 - [x] Establish incident response procedures — see [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)
+
+---
+
+## Phase 6 — Platform Review Findings (2026-08-11 audit)
+
+### 6.1 Bug fixes — panic-prone code paths
+- [ ] Replace `.unwrap()` with proper error handling in `tpt-anima-inp/src/ledger.rs:213,224,228,244,258` (`get_mut` on unknown `agent_id` panics instead of returning an error — risky in a ledger feeding SOC2/HIPAA/FedRAMP export)
+- [ ] Replace `.lock().unwrap()` with poison-tolerant handling in `tpt-anima-zkpa/src/async_proofs.rs:92,159,371,376,389`
+- [ ] Replace `.unwrap()` on JSON serialization in `tpt-anima-edge-gateway/src/main.rs:43,47` (low severity, CLI output path)
+- [ ] Implement real CoreML/ANE byte codegen in `tpt-anima-ck/src/jit/backend.rs:131` (currently emits placeholder bytes)
+
+### 6.2 Test coverage gaps
+- [ ] Expand test coverage for `tpt-anima-core-hypervisor` (9 tests/2 files — lightest in the workspace)
+- [ ] Expand test coverage for `tpt-anima-edge-gateway` (11 tests/3 files)
+
+### 6.3 Missing examples (4 of 10 crates have none)
+- [ ] Add `examples/` for `tpt-anima-edge-gateway`
+- [ ] Add `examples/` for `tpt-anima-edge-runtime`
+- [ ] Add `examples/` for `tpt-anima-co-processor`
+- [ ] Add `examples/` for `tpt-anima-core-hypervisor`
+
+### 6.4 CI/CD & repo hygiene
+- [ ] Add `.github/workflows/ci.yml` running `cargo fmt --check`, `cargo clippy --workspace -- -D warnings`, `cargo test --workspace` on PR
+- [ ] Add GitHub issue templates and PR template
+- [ ] Add `CONTRIBUTING.md`
+- [ ] Add `CODE_OF_CONDUCT.md`
+- [ ] Add Dependabot/Renovate config for Cargo + `observatory-ui` npm deps
+
+### 6.5 Adoption acceleration
+- [ ] Publish crates to crates.io once API stabilizes
+- [ ] Add a thin `tpt-anima` meta-crate re-exporting sse/inp/ck/zkpa behind feature flags (one dependency line instead of four)
+- [ ] Wire `VectorEmbedding::cosine_similarity()` into an opt-in hybrid retrieval mode on `InMemoryStorage` (e.g. `attention_retrieve_by_similarity`) as an escape hatch for vector-DB-style search
+- [ ] Create a `cargo-generate` template repo scaffolding a minimal 4-layer agent project
+- [ ] Add a WASM-in-browser live demo of `tpt-anima-edge-runtime`
+- [ ] Add `.devcontainer.json` for one-click Codespaces onboarding (Rust 1.80+, Node 18+ prereqs)
+- [ ] Add a short GIF/screen recording of the Observatory UI to the root README
+- [ ] Add a consolidated Anima-vs-traditional-stack comparison table to the root README
+
+### 6.6 Documentation fixes (done in this pass)
+- [x] Fix stale CLAUDE.md claims that `tpt-anima-ck/src/jit/` and `tpt-anima-edge-gateway` are unimplemented stubs
+- [x] Link `DEMO_SCENARIOS.md` from the root README documentation table
+- [x] Rename GitHub org references from `PhillipC05` to `tpt-solutions` across `Cargo.toml` and all README/CHANGELOG files

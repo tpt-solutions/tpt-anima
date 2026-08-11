@@ -1,6 +1,6 @@
 # Incident Response Procedures
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 This document defines how to detect, triage, contain, and recover from
 security and reliability incidents in a TPT Anima deployment, and which

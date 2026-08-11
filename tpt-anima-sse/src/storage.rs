@@ -5,7 +5,8 @@
 
 use std::collections::HashMap;
 
-use crate::memory_node::{MemoryId, MemoryNode};
+use crate::ann::AnnIndex;
+use crate::memory_node::{MemoryId, MemoryNode, VectorEmbedding};
 
 // ---------------------------------------------------------------------------
 // InMemoryStorage — reference implementation
@@ -18,17 +19,28 @@ use crate::memory_node::{MemoryId, MemoryNode};
 /// surface and can be swapped for a persistent backend.
 pub struct InMemoryStorage {
     nodes: HashMap<MemoryId, MemoryNode>,
+    /// Approximate nearest-neighbor index for semantic (cosine) retrieval.
+    ann: AnnIndex,
+    /// Rebuild the coarse quantizer once the index grows by this many inserts.
+    ann_rebuild_stride: usize,
+    ann_dirty_since_rebuild: usize,
 }
 
 impl InMemoryStorage {
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
+            ann: AnnIndex::new(0),
+            ann_rebuild_stride: 256,
+            ann_dirty_since_rebuild: 0,
         }
     }
 
     /// Persist a [`MemoryNode`] to storage.
     pub fn write_node(&mut self, node: MemoryNode) {
+        self.ann.insert_embedding(node.id, &node.embedding);
+        self.ann_dirty_since_rebuild += 1;
+        self.maybe_rebuild_ann();
         self.nodes.insert(node.id, node);
     }
 
@@ -44,7 +56,47 @@ impl InMemoryStorage {
 
     /// Remove a node from storage. Returns the removed node if it existed.
     pub fn delete_node(&mut self, id: &MemoryId) -> Option<MemoryNode> {
+        self.ann.remove(id);
+        self.ann_dirty_since_rebuild += 1;
+        self.maybe_rebuild_ann();
         self.nodes.remove(id)
+    }
+
+    /// Rebuild the ANN coarse quantizer if enough inserts/deletes have
+    /// accumulated since the last build. Cheap no-op when under the stride.
+    fn maybe_rebuild_ann(&mut self) {
+        if self.ann_dirty_since_rebuild >= self.ann_rebuild_stride {
+            self.ann.rebuild();
+            self.ann_dirty_since_rebuild = 0;
+        }
+    }
+
+    /// Force a rebuild of the approximate nearest-neighbor index. Call after
+    /// bulk loads or before a latency-critical semantic search so the coarse
+    /// quantizer reflects the current memory state.
+    pub fn rebuild_semantic_index(&mut self) {
+        self.ann.rebuild();
+        self.ann_dirty_since_rebuild = 0;
+    }
+
+    /// Approximate nearest-neighbor semantic retrieval.
+    ///
+    /// Returns up to `k` stored nodes ordered by cosine similarity to `query`
+    /// (descending), using the inverted-file index. Unlike
+    /// [`attention_retrieve`](Self::attention_retrieve) this is *query-ranked*
+    /// rather than *weight-ranked* — it finds the semantically closest memories
+    /// rather than the strongest ones.
+    pub fn semantic_search(&self, query: &VectorEmbedding, k: usize) -> Vec<&MemoryNode> {
+        self.ann
+            .search_embedding(query, k)
+            .into_iter()
+            .filter_map(|(id, _)| self.nodes.get(&id))
+            .collect()
+    }
+
+    /// Number of vectors held in the approximate nearest-neighbor index.
+    pub fn semantic_index_size(&self) -> usize {
+        self.ann.len()
     }
 
     /// Attention-based retrieval: return nodes ranked by `current_strength`
@@ -99,9 +151,20 @@ impl InMemoryStorage {
 
     /// Remove all nodes where [`should_prune`](MemoryNode::should_prune) is true.
     ///
-    /// Returns the number of pruned nodes.
+    /// Returns the number of pruned nodes. Pruned nodes are also evicted from
+    /// the approximate nearest-neighbor index.
     pub fn prune_pass(&mut self) -> usize {
         let before = self.nodes.len();
+        let removed: Vec<MemoryId> = self
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.should_prune())
+            .map(|(id, _)| *id)
+            .collect();
+        for id in &removed {
+            self.ann.remove(id);
+        }
+        self.ann_dirty_since_rebuild += removed.len();
         self.nodes.retain(|_, node| !node.should_prune());
         before - self.nodes.len()
     }
@@ -232,5 +295,55 @@ mod tests {
 
         let results = storage.retrieve_by_tag("test");
         assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn semantic_search_returns_nearest_by_cosine() {
+        let mut storage = InMemoryStorage::new();
+        // Two poles on a 2-D embedding space.
+        let mut a = MemoryNode::new(
+            [1u8; 32],
+            VectorEmbedding::new(vec![1.0, 0.0]),
+            b"alpha".to_vec(),
+            "text/plain".into(),
+            SensoryModality::Textual,
+            AGENT,
+        );
+        a.current_strength = 0.1; // weak, so attention-rank would lose it
+        let mut b = MemoryNode::new(
+            [2u8; 32],
+            VectorEmbedding::new(vec![0.0, 1.0]),
+            b"beta".to_vec(),
+            "text/plain".into(),
+            SensoryModality::Textual,
+            AGENT,
+        );
+        b.current_strength = 0.9; // strong
+        storage.write_node(a);
+        storage.write_node(b);
+        storage.rebuild_semantic_index();
+
+        // Query near pole A must surface the semantically closest node first,
+        // regardless of its low attention weight.
+        let query = VectorEmbedding::new(vec![0.99, 0.01]);
+        let results = storage.semantic_search(&query, 1);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, [1u8; 32]);
+    }
+
+    #[test]
+    fn semantic_index_evicts_on_prune_and_delete() {
+        let mut storage = InMemoryStorage::new();
+        storage.write_node(make_node(1, 0.9));
+        storage.write_node(make_node(2, 0.01)); // below threshold
+        storage.rebuild_semantic_index();
+        assert_eq!(storage.semantic_index_size(), 2);
+
+        storage.delete_node(&[1u8; 32]);
+        assert_eq!(storage.semantic_index_size(), 1);
+
+        storage.write_node(make_node(2, 0.01));
+        storage.prune_pass();
+        assert_eq!(storage.semantic_index_size(), 0);
     }
 }

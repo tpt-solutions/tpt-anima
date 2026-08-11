@@ -1,7 +1,7 @@
 # tpt-anima-co-processor
 
 **Tier 2 Co-Processor** — eBPF kernel module (Linux) + Windows driver for AI workload
-interception, part of [TPT Anima](https://github.com/PhillipC05/tpt-anima).
+interception, part of [TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 The Co-Processor runs *alongside* an existing operating system and intercepts AI
 workloads as they happen — converting them into native Anima intents and forwarding
@@ -25,7 +25,7 @@ install.
 
 ```toml
 [dependencies]
-tpt-anima-co-processor = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-co-processor = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -58,4 +58,4 @@ assert!(!co.recent_intercepts(10).is_empty());
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

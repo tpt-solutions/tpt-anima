@@ -1,7 +1,7 @@
 # tpt-anima-edge-gateway
 
 **Edge Translation Gateway** — the INP ↔ MCP / A2A bridge for
-[TPT Anima](https://github.com/PhillipC05/tpt-anima).
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 Anima's internal substrate is philosophy-free of HTTP and JSON, but the outside world
 speaks MCP and A2A. The Edge Gateway is a lightweight translation layer that converts a
@@ -18,7 +18,7 @@ internal purity while interoperating with the broader agent ecosystem.
 
 ```toml
 [dependencies]
-tpt-anima-edge-gateway = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-edge-gateway = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Usage (binary)
@@ -46,4 +46,4 @@ echo '{"id":"1","action":"do","payload":{}}' | cargo run -p tpt-anima-edge-gatew
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

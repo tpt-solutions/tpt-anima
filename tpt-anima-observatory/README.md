@@ -1,7 +1,7 @@
 # tpt-anima-observatory
 
 **Anima Observatory** — the real-time human telemetry window for
-[TPT Anima](https://github.com/PhillipC05/tpt-anima).
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 This crate turns machine-speed AI cognition into observable, auditable
 visualizations. It ships a **telemetry aggregation library** (`lib`) and a
@@ -30,7 +30,7 @@ Pulse, Agency Ledger, and Economic Flow.
 
 ```toml
 [dependencies]
-tpt-anima-observatory = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-observatory = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start (run the server)
@@ -71,4 +71,4 @@ Drives a golden path across all four layers in a single request: memory → nego
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

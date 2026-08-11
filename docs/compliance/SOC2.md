@@ -1,6 +1,6 @@
 # SOC 2 Type II — Certification Preparation
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 This document maps TPT Anima's existing controls to the SOC 2 Trust Services
 Criteria (TSC) and lists the evidence-collection work required before

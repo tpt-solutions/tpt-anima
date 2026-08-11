@@ -1,7 +1,7 @@
 # tpt-anima-ck
 
 **Cognitive Kernel (CK)** — the brainstem of
-[TPT Anima](https://github.com/PhillipC05/tpt-anima).
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima).
 
 > *The unit of compute is an inference.*
 
@@ -28,7 +28,7 @@ unsafe work via **Cognitive Circuit Breakers**.
 
 ```toml
 [dependencies]
-tpt-anima-ck = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-ck = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -97,4 +97,4 @@ Demonstrates attention-weight preemption plus a `ThoughtBubble` sandbox allocati
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

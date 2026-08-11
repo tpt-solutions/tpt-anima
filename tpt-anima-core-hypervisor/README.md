@@ -1,7 +1,7 @@
 # tpt-anima-core-hypervisor
 
 **Tier 1 Anima Core Hypervisor** — a Type-1 bare-metal hypervisor for the full
-[TPT Anima](https://github.com/PhillipC05/tpt-anima) stack.
+[TPT Anima](https://github.com/tpt-solutions/tpt-anima) stack.
 
 > Software-level orchestration of the four Anima layers — not literal bare-metal
 > virtualization.
@@ -28,7 +28,7 @@ on top.
 
 ```toml
 [dependencies]
-tpt-anima-core-hypervisor = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-core-hypervisor = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
 ## Quick start
@@ -63,4 +63,4 @@ hypervisor and reports subsystem health.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](../../LICENSE).
+Dual-licensed under the [MIT License](../../LICENSE-MIT) or the [Apache License 2.0](../../LICENSE-APACHE).

@@ -226,7 +226,7 @@ mod tests {
             ],
             "metadata": {
                 "author": "agent-team-alpha",
-                "license": "Apache-2.0"
+                "license": "MIT OR Apache-2.0"
             }
         }"#
     }

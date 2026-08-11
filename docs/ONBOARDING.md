@@ -1,6 +1,6 @@
 # TPT Anima Beta Onboarding Guide
 
-> Copyright TPT Solutions · Apache License 2.0
+> Copyright TPT Solutions · Dual-licensed under MIT or Apache-2.0
 
 Welcome to the TPT Anima beta program! This guide will help you get started with the living, probabilistic software stack for autonomous AI.
 
