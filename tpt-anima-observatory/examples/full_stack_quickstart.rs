@@ -33,7 +33,10 @@ fn main() {
         sse_agent_id,
     );
     storage.write_node(memory);
-    println!("1. [SSE]  Stored 1 memory node ({} total in substrate)", storage.node_count());
+    println!(
+        "1. [SSE]  Stored 1 memory node ({} total in substrate)",
+        storage.node_count()
+    );
 
     // ── Layer 2 — INP: negotiate who analyzes it ─────────────────────────────
     let requester = Uuid::new_v4();
@@ -97,7 +100,10 @@ fn main() {
     // ── Layer 4 — CK: check thermal budget before dispatching the inference ──
     let budget = ComputeBudget {
         flops_budget: 5_000_000_000_000,
-        thermal_constraints: ThermalConstraints { max_temp_celsius: 80.0, max_power_watts: 65.0 },
+        thermal_constraints: ThermalConstraints {
+            max_temp_celsius: 80.0,
+            max_power_watts: 65.0,
+        },
     };
     let mut budget_manager = BudgetManager::new(budget);
     budget_manager.update_temperature(58.0);

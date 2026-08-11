@@ -207,25 +207,32 @@ impl ComputeLedger {
             return Err(LedgerError::InvalidAmount { amount: amount.0 });
         }
 
-        self.ensure_agent(from);
-        self.ensure_agent(to);
-
-        let from_balance = self.balances.get(&from).unwrap().balance;
-        if from_balance.0 < amount.0 {
+        // Non-panicking balance read: an unknown sender is treated as a zero
+        // balance, which then fails the funds check below rather than unwrapping
+        // into a panic (important for a ledger feeding SOC2/HIPAA/FedRAMP export).
+        let available = self.balances.get(&from).map(|b| b.balance.0).unwrap_or(0.0);
+        if available < amount.0 {
             return Err(LedgerError::InsufficientFunds {
-                available: from_balance.0,
+                available,
                 requested: amount.0,
             });
         }
 
         let tx = Transaction::new(from, to, amount, intent_id, description);
 
-        // Update balances
-        let from_bal = self.balances.get_mut(&from).unwrap();
+        // Update balances via `entry` so neither side can panic, even if a
+        // recipient was never explicitly registered.
+        let from_bal = self
+            .balances
+            .entry(from)
+            .or_insert_with(|| AgentBalance::new(from));
         from_bal.balance = from_bal.balance - amount;
         from_bal.total_spent = from_bal.total_spent + amount;
 
-        let to_bal = self.balances.get_mut(&to).unwrap();
+        let to_bal = self
+            .balances
+            .entry(to)
+            .or_insert_with(|| AgentBalance::new(to));
         to_bal.balance = to_bal.balance + amount;
         to_bal.total_earned = to_bal.total_earned + amount;
 
@@ -240,8 +247,10 @@ impl ComputeLedger {
         if amount.0 <= 0.0 {
             return Err(LedgerError::InvalidAmount { amount: amount.0 });
         }
-        self.ensure_agent(agent_id);
-        let bal = self.balances.get_mut(&agent_id).unwrap();
+        let bal = self
+            .balances
+            .entry(agent_id)
+            .or_insert_with(|| AgentBalance::new(agent_id));
         bal.balance = bal.balance + amount;
         bal.total_earned = bal.total_earned + amount;
         self.total_minted = self.total_minted + amount;
@@ -254,14 +263,21 @@ impl ComputeLedger {
         if amount.0 <= 0.0 {
             return Err(LedgerError::InvalidAmount { amount: amount.0 });
         }
-        self.ensure_agent(agent_id);
-        let bal = self.balances.get_mut(&agent_id).unwrap();
-        if bal.balance.0 < amount.0 {
+        let available = self
+            .balances
+            .get(&agent_id)
+            .map(|b| b.balance.0)
+            .unwrap_or(0.0);
+        if available < amount.0 {
             return Err(LedgerError::InsufficientFunds {
-                available: bal.balance.0,
+                available,
                 requested: amount.0,
             });
         }
+        let bal = self
+            .balances
+            .entry(agent_id)
+            .or_insert_with(|| AgentBalance::new(agent_id));
         bal.balance = bal.balance - amount;
         bal.total_spent = bal.total_spent + amount;
         self.total_burned = self.total_burned + amount;

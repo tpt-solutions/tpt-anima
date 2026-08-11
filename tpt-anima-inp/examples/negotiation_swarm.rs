@@ -48,7 +48,10 @@ fn main() {
     );
     let beta_cap_id = registry.register(beta_cap);
     let gamma_cap_id = registry.register(gamma_cap);
-    println!("Registered {} capabilities for action 'analyze'", registry.count());
+    println!(
+        "Registered {} capabilities for action 'analyze'",
+        registry.count()
+    );
 
     // ── Broadcast an intent requiring accuracy > 95% ─────────────────────
     let qos = QoSConstraints {
@@ -60,7 +63,10 @@ fn main() {
         "analyze".into(),
         serde_json::json!({ "task": "Analyze Q3 financial report" }),
         qos,
-        EconomicTerms::PerUnit { credits_per_unit: 1.0, unit: "report".into() },
+        EconomicTerms::PerUnit {
+            credits_per_unit: 1.0,
+            unit: "report".into(),
+        },
         requester,
     );
     let intent_id = intent.id;
@@ -71,10 +77,22 @@ fn main() {
 
     session.start_collecting();
     session.add_bid(CapabilityBid::new(
-        intent_id, beta, beta_cap_id, 100.0, Duration::from_millis(200), 0.92, 0.9,
+        intent_id,
+        beta,
+        beta_cap_id,
+        100.0,
+        Duration::from_millis(200),
+        0.92,
+        0.9,
     ));
     session.add_bid(CapabilityBid::new(
-        intent_id, gamma, gamma_cap_id, 150.0, Duration::from_millis(400), 0.98, 0.95,
+        intent_id,
+        gamma,
+        gamma_cap_id,
+        150.0,
+        Duration::from_millis(400),
+        0.98,
+        0.95,
     ));
     println!("2. Collected {} bids", session.bids.len());
 

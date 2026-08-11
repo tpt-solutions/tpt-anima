@@ -6,8 +6,8 @@
 //!     echo '{"id":"1","action":"do","payload":{}}' | tpt-anima-edge-gateway --mode mcp
 //!     echo '{"id":"1","action":"do","payload":{}}' | tpt-anima-edge-gateway --mode a2a
 
-use tpt_anima_edge_gateway::{InpIntent, InpToA2aTranslator, InpToMcpTranslator};
 use std::io::{self, Read};
+use tpt_anima_edge_gateway::{InpIntent, InpToA2aTranslator, InpToMcpTranslator};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -40,11 +40,23 @@ fn main() {
     match mode.as_str() {
         "mcp" => {
             let mcp = InpToMcpTranslator::translate(&intent);
-            println!("{}", serde_json::to_string_pretty(&mcp).unwrap());
+            match serde_json::to_string_pretty(&mcp) {
+                Ok(json) => println!("{json}"),
+                Err(e) => {
+                    eprintln!("Error: failed to serialize MCP output: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
         "a2a" => {
             let a2a = InpToA2aTranslator::translate(&intent);
-            println!("{}", serde_json::to_string_pretty(&a2a).unwrap());
+            match serde_json::to_string_pretty(&a2a) {
+                Ok(json) => println!("{json}"),
+                Err(e) => {
+                    eprintln!("Error: failed to serialize A2A output: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
         other => {
             eprintln!("Error: unknown mode '{other}'. Expected 'mcp' or 'a2a'.");

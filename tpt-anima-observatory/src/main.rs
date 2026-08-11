@@ -23,7 +23,9 @@ use tpt_anima_inp::{
 use tpt_anima_sse::{InMemoryStorage, MemoryNode, SensoryModality, VectorEmbedding};
 use tpt_anima_zkpa::SessionManager;
 
-use tpt_anima_observatory::{CkEvent, InpEvent, SseEvent, TelemetryEvent, TelemetryServer, ZkpaEvent};
+use tpt_anima_observatory::{
+    CkEvent, InpEvent, SseEvent, TelemetryEvent, TelemetryServer, ZkpaEvent,
+};
 
 const OBSERVATORY_ADDR: &str = "127.0.0.1:9001";
 

@@ -1,0 +1,21 @@
+[package]
+name        = "tpt-anima"
+description = "TPT Anima — unified meta-crate re-exporting the SSE, INP, CK, and ZKPA layers behind feature flags"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+authors.workspace    = true
+repository.workspace = true
+
+[dependencies]
+tpt-anima-sse   = { path = "../tpt-anima-sse",   version = "0.1.0", optional = true }
+tpt-anima-inp   = { path = "../tpt-anima-inp",   version = "0.1.0", optional = true }
+tpt-anima-ck    = { path = "../tpt-anima-ck",    version = "0.1.0", optional = true }
+tpt-anima-zkpa  = { path = "../tpt-anima-zkpa",  version = "0.1.0", optional = true }
+
+[features]
+default = ["sse", "inp", "ck", "zkpa"]
+sse  = ["dep:tpt-anima-sse"]
+inp  = ["dep:tpt-anima-inp"]
+ck   = ["dep:tpt-anima-ck"]
+zkpa = ["dep:tpt-anima-zkpa"]

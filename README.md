@@ -21,6 +21,17 @@ tpt-anima-ck   = { git = "https://github.com/tpt-solutions/tpt-anima" }
 tpt-anima-zkpa = { git = "https://github.com/tpt-solutions/tpt-anima" }
 ```
 
+Or pull in all four layers through the thin `tpt-anima` meta-crate (one
+dependency line instead of four), opting into only the layers you need:
+
+```toml
+# All layers (default features)
+tpt-anima = { git = "https://github.com/tpt-solutions/tpt-anima" }
+
+# Only the Cognitive Kernel, trimming the dependency graph
+tpt-anima = { git = "https://github.com/tpt-solutions/tpt-anima", default-features = false, features = ["ck"] }
+```
+
 The smallest possible example — ingest a memory into the Semantic State Engine and watch it decay and reinforce:
 
 ```rust
@@ -90,6 +101,20 @@ For the full walkthrough — deployment tiers, embedding Anima's crates in your 
 | **Intent & Negotiation Protocol (INP)** | `tpt-anima-inp` | REST, gRPC, GraphQL, Message Queues | *Agents pursue outcomes, not endpoints* |
 | **Zero-Knowledge Proof of Agency (ZKPA)** | `tpt-anima-zkpa` | OAuth, API Keys, IAM, Certificate Authorities | *Identity is ephemeral and provable* |
 | **Cognitive Kernel (CK)** | `tpt-anima-ck` | Linux, Windows, thread schedulers, container runtimes | *The unit of compute is an inference* |
+
+### Anima vs. Traditional Stack
+
+| Concern | Traditional stack | TPT Anima |
+|---------|------------------|-----------|
+| Memory | Relational/vector DBs queried by key or ANN | SSE: memories *attended* by strength, causally linked, decaying over time |
+| Inter-agent comms | REST / gRPC / GraphQL / message queues | INP intents + bids + automatic fallback; native A2A for cross-network |
+| Identity & auth | OAuth, API keys, IAM, CAs | ZKPA: ephemeral, task-scoped, hardware-bound sessions with ZK proofs |
+| Scheduling unit | OS threads / processes | CK inferences scheduled by attention-weight, not CPU time-slices |
+| Context memory | RAM vs. disk, explicit paging | Unified VRAM/RAM/NVMe address space with predictive pre-fetch |
+| Safety | Process isolation, manual guardrails | Cognitive Circuit Breakers + cryptographically isolated ThoughtBubbles |
+| Agent economics | Manual billing / no accounting | Native Compute Ledger micro-economy with conserved credit supply |
+| Standards | Bespoke HTTP/JSON contracts | MCP + A2A as the primary nervous system |
+| Deployment | One OS, one form factor | Three tiers: Core hypervisor, Co-Processor eBPF, Edge Wasm/native |
 
 ### Supporting Crates
 

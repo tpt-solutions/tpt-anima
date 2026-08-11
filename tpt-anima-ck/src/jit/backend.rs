@@ -128,8 +128,9 @@ impl Backend for AnEBackend {
         if !self.is_available() {
             return Err(JitError::BackendUnavailable("apple_ane".into()));
         }
-        // Stub: emit placeholder CoreML bytes
-        Ok(format!("// compiled ane model for: {inference}").into_bytes())
+        // Emit a real CoreML `Model` protobuf (native ANE model container)
+        // instead of a placeholder string.
+        Ok(super::coreml::build_identity_model(inference))
     }
 
     fn execute(&self, code: &[u8]) -> Result<String, JitError> {

@@ -483,4 +483,84 @@ mod tests {
         assert_eq!(session.config.name, "test-vm");
         assert_eq!(hypervisor.stats().vm_count, 1);
     }
+
+    #[test]
+    fn halt_sets_running_false() {
+        let config = HypervisorConfig::default();
+        let mut hypervisor = AnimaHypervisor::new(config).unwrap();
+        hypervisor.boot().unwrap();
+        assert!(hypervisor.stats().running);
+        hypervisor.halt();
+        assert!(!hypervisor.stats().running);
+    }
+
+    #[test]
+    fn stats_before_boot_report_stopped_and_empty() {
+        let config = HypervisorConfig::default();
+        let hypervisor = AnimaHypervisor::new(config).unwrap();
+        let stats = hypervisor.stats();
+        assert!(!stats.running);
+        assert_eq!(stats.vm_count, 0);
+        assert_eq!(stats.cpu_usage, 50.0);
+        assert_eq!(stats.memory_utilization, 30.0);
+    }
+
+    #[test]
+    fn default_config_has_expected_values() {
+        let config = HypervisorConfig::default();
+        assert!(config.hardware_attestation_enabled);
+        assert_eq!(config.bubble_security_level, "HardwareEnclave");
+        assert_eq!(config.cpu_usage_percent, 50.0);
+        assert_eq!(config.memory_utilization_percent, 30.0);
+    }
+
+    #[test]
+    fn vm_config_defaults_to_enabled() {
+        let config = VMConfig::new("vm".into(), 1024, 512, 2);
+        assert!(config.enabled);
+        assert_eq!(config.ram_mb, 1024);
+        assert_eq!(config.vram_mb, 512);
+        assert_eq!(config.cpus, 2);
+        assert!(!config.id.is_empty());
+    }
+
+    #[test]
+    fn vm_session_records_nonzero_creation_time() {
+        let config = VMConfig::new("vm".into(), 1024, 512, 2);
+        let session = VMSession::new(config).unwrap();
+        assert!(session.created_at > 0);
+    }
+
+    #[test]
+    fn spawn_multiple_vms_increments_count() {
+        let config = HypervisorConfig::default();
+        let mut hypervisor = AnimaHypervisor::new(config).unwrap();
+        hypervisor.boot().unwrap();
+
+        hypervisor
+            .spawn_vm(VMConfig::new("a".into(), 1024, 512, 2))
+            .unwrap();
+        hypervisor
+            .spawn_vm(VMConfig::new("b".into(), 2048, 1024, 4))
+            .unwrap();
+        hypervisor
+            .spawn_vm(VMConfig::new("c".into(), 4096, 2048, 8))
+            .unwrap();
+        assert_eq!(hypervisor.stats().vm_count, 3);
+    }
+
+    #[test]
+    fn no_active_zkpa_sessions_before_boot() {
+        let config = HypervisorConfig::default();
+        let hypervisor = AnimaHypervisor::new(config).unwrap();
+        assert!(hypervisor.zkpa_sessions().active_sessions().is_empty());
+    }
+
+    #[test]
+    fn hypervisor_error_display_is_descriptive() {
+        let err = HypervisorError::SubsystemHealthCheckFailed("boom".into());
+        assert!(err.to_string().contains("boom"));
+        let err = HypervisorError::VMSpawnFailed("nope".into());
+        assert!(err.to_string().contains("nope"));
+    }
 }

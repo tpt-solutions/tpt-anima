@@ -79,3 +79,61 @@ impl HttpTransport {
             .map_err(|e| TranslationError::InvalidPayload(format!("deserialization: {e}")))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn receive_roundtrips_mcp_payload() {
+        let payload = McpPayload {
+            method: "analyze".into(),
+            params: serde_json::json!({ "text": "hi" }),
+            id: "mcp-1".into(),
+        };
+        let body = serde_json::to_string(&payload).unwrap();
+        let back: McpPayload = HttpTransport::receive(&body).unwrap();
+        assert_eq!(back, payload);
+    }
+
+    #[test]
+    fn receive_errors_on_invalid_json() {
+        let err = HttpTransport::receive::<McpPayload>("not json").unwrap_err();
+        assert!(matches!(err, TranslationError::InvalidPayload(_)));
+    }
+
+    #[test]
+    fn receive_errors_on_type_mismatch() {
+        // A well-formed JSON object that is not an McpPayload.
+        let err = HttpTransport::receive::<McpPayload>("{\"foo\": 1}").unwrap_err();
+        assert!(matches!(err, TranslationError::InvalidPayload(_)));
+    }
+
+    #[tokio::test]
+    async fn send_mcp_requires_endpoint() {
+        let t = HttpTransport::new(None, Some("https://a2a.example".into()));
+        let err = t
+            .send_mcp(&McpPayload {
+                method: "x".into(),
+                params: serde_json::json!({}),
+                id: "1".into(),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(err, TranslationError::MissingField("mcp_endpoint".into()));
+    }
+
+    #[tokio::test]
+    async fn send_a2a_requires_endpoint() {
+        let t = HttpTransport::new(Some("https://mcp.example".into()), None);
+        let err = t
+            .send_a2a(&A2aPayload {
+                task_id: "t".into(),
+                message: "m".into(),
+                metadata: serde_json::json!({}),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(err, TranslationError::MissingField("a2a_endpoint".into()));
+    }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "TPT Anima Dev",
+  "image": "mcr.microsoft.com/devcontainers/rust:1.80",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    }
+  },
+  "onCreateCommand": "rustup component add rustfmt clippy",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "rust-analyzer.check.command": "clippy"
+      }
+    }
+  },
+  "remoteUser": "vscode"
+}

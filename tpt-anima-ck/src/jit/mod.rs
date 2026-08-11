@@ -4,6 +4,7 @@
 //! falling back gracefully through a prioritized chain.
 
 pub mod backend;
+pub mod coreml;
 pub mod detection;
 pub mod dispatch;
 

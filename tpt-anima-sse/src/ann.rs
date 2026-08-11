@@ -126,10 +126,7 @@ impl AnnIndex {
             return false;
         }
         let vector = normalize(vector);
-        let point = AnnPoint {
-            id,
-            vector,
-        };
+        let point = AnnPoint { id, vector };
         if self.points.insert(id, point).is_none() {
             self.order.push(id);
         }

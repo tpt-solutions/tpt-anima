@@ -114,6 +114,48 @@ impl InMemoryStorage {
         nodes.into_iter().take(limit).collect()
     }
 
+    /// Hybrid retrieval — an opt-in escape hatch for vector-DB-style search.
+    ///
+    /// Ranks nodes by a blended score combining the SSE attention weight
+    /// (`current_strength`) with cosine similarity to `query`:
+    ///
+    /// ```text
+    /// score = alpha · current_strength + (1 − alpha) · cosine_similarity
+    /// ```
+    ///
+    /// `alpha = 1.0` degenerates to pure [`attention_retrieve`](Self::attention_retrieve)
+    /// and `alpha = 0.0` to pure [`semantic_search`](Self::semantic_search). The
+    /// default `0.5` balances recency/importance against semantic closeness.
+    ///
+    /// Unlike `semantic_search` (which probes an approximate index), this is an
+    /// exact, full-scan scoring pass suitable for small stores or one-off
+    /// queries where recall must be exact.
+    pub fn hybrid_retrieve(
+        &self,
+        query: &VectorEmbedding,
+        limit: usize,
+        alpha: f32,
+    ) -> Vec<&MemoryNode> {
+        let alpha = alpha.clamp(0.0, 1.0);
+        let mut scored: Vec<(f32, &MemoryNode)> = self
+            .nodes
+            .values()
+            .map(|node| {
+                let sim = node
+                    .embedding
+                    .cosine_similarity(query)
+                    .unwrap_or(0.0)
+                    .clamp(-1.0, 1.0);
+                // Map cosine ∈ [−1, 1] → [0, 1] so it composes with strength.
+                let sim01 = (sim + 1.0) / 2.0;
+                let score = alpha * node.current_strength + (1.0 - alpha) * sim01;
+                (score, node)
+            })
+            .collect();
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        scored.into_iter().map(|(_, n)| n).take(limit).collect()
+    }
+
     /// Retrieve nodes whose strength is above a minimum threshold.
     pub fn retrieve_above_threshold(&self, min_strength: f32) -> Vec<&MemoryNode> {
         self.nodes
@@ -345,5 +387,42 @@ mod tests {
         storage.write_node(make_node(2, 0.01));
         storage.prune_pass();
         assert_eq!(storage.semantic_index_size(), 0);
+    }
+
+    #[test]
+    fn hybrid_retrieve_blends_attention_and_similarity() {
+        let mut storage = InMemoryStorage::new();
+        // Node A: semantically near the query but weak attention weight.
+        let mut a = MemoryNode::new(
+            [1u8; 32],
+            VectorEmbedding::new(vec![1.0, 0.0]),
+            b"alpha".to_vec(),
+            "text/plain".into(),
+            SensoryModality::Textual,
+            AGENT,
+        );
+        a.current_strength = 0.1;
+        // Node B: far from the query but strong attention weight.
+        let mut b = MemoryNode::new(
+            [2u8; 32],
+            VectorEmbedding::new(vec![0.0, 1.0]),
+            b"beta".to_vec(),
+            "text/plain".into(),
+            SensoryModality::Textual,
+            AGENT,
+        );
+        b.current_strength = 0.9;
+        storage.write_node(a);
+        storage.write_node(b);
+
+        let query = VectorEmbedding::new(vec![1.0, 0.0]);
+
+        // Pure similarity (alpha = 0) → nearest semantic node wins (A).
+        let pure_sim = storage.hybrid_retrieve(&query, 1, 0.0);
+        assert_eq!(pure_sim[0].id, [1u8; 32]);
+
+        // Pure attention (alpha = 1) → strongest node wins (B).
+        let pure_attn = storage.hybrid_retrieve(&query, 1, 1.0);
+        assert_eq!(pure_attn[0].id, [2u8; 32]);
     }
 }

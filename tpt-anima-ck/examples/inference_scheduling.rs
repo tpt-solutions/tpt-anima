@@ -53,7 +53,10 @@ fn main() {
 
     scheduler.submit(low, 0.3);
     scheduler.submit(high, 0.95);
-    println!("Submitted 2 same-priority jobs (attention weights 0.3, then 0.95). Pending: {}", scheduler.pending_count());
+    println!(
+        "Submitted 2 same-priority jobs (attention weights 0.3, then 0.95). Pending: {}",
+        scheduler.pending_count()
+    );
 
     if let Some(job) = scheduler.schedule_next() {
         println!(
@@ -62,12 +65,19 @@ fn main() {
         );
     }
     if let Some(job) = scheduler.schedule_next() {
-        println!("2. Dispatched second: model '{}' (priority {:?})", job.inference.model_id, job.inference.priority);
+        println!(
+            "2. Dispatched second: model '{}' (priority {:?})",
+            job.inference.model_id, job.inference.priority
+        );
     }
 
     // Allocate an isolated ThoughtBubble sandbox for the winning inference.
     let mut bubbles = ThoughtBubbleManager::new();
-    let bubble = bubbles.create_bubble("reasoner-large-sandbox".into(), IsolationLevel::Enclave, vec![]);
+    let bubble = bubbles.create_bubble(
+        "reasoner-large-sandbox".into(),
+        IsolationLevel::Enclave,
+        vec![],
+    );
     println!(
         "3. Allocated ThoughtBubble {} (isolation: {:?}, compromised: {})",
         bubble.id, bubble.isolation_level, bubble.is_compromised

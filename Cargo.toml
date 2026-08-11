@@ -11,6 +11,7 @@ members = [
     "tpt-anima-tests",
     "tpt-anima-core-hypervisor",
     "tpt-anima-co-processor",
+    "tpt-anima",
 ]
 
 [workspace.package]

@@ -29,28 +29,47 @@ fn main() {
         Duration::from_secs(300),
         None,
     );
-    println!("1. Issued session {} for agent {} (expires in 300s)", session.id, agent_id);
+    println!(
+        "1. Issued session {} for agent {} (expires in 300s)",
+        session.id, agent_id
+    );
     ledger
-        .append(LedgerEventType::SessionCreated, agent_id, format!("session {}", session.id))
+        .append(
+            LedgerEventType::SessionCreated,
+            agent_id,
+            format!("session {}", session.id),
+        )
         .unwrap();
 
     // ── Real ZK proof of code integrity ──────────────────────────────────
     let proofs = ProofGenerator::new();
-    let circuit = ZKCircuit { circuit_type: "code_integrity".into(), proof_system: ProofSystem::Groth16 };
+    let circuit = ZKCircuit {
+        circuit_type: "code_integrity".into(),
+        proof_system: ProofSystem::Groth16,
+    };
     let code_hash = Sha256::digest(b"tpt-anima-ck::scheduler v0.1.0").to_vec();
     let proof = proofs
         .generate_code_integrity_proof(&code_hash, &circuit)
         .expect("proof generation");
     let verified = proofs.verify(&proof).is_ok();
-    println!("2. Generated {} proof, verify() = {}", proof.proof_type, verified);
+    println!(
+        "2. Generated {} proof, verify() = {}",
+        proof.proof_type, verified
+    );
     ledger
-        .append(LedgerEventType::ProofGenerated, agent_id, format!("{} proof verified={verified}", proof.proof_type))
+        .append(
+            LedgerEventType::ProofGenerated,
+            agent_id,
+            format!("{} proof verified={verified}", proof.proof_type),
+        )
         .unwrap();
 
     // ── Hash-chained liveness heartbeats + gap detection ─────────────────
     let mut liveness = LivenessMonitor::new();
     for _ in 0..3 {
-        let hb = liveness.emit_heartbeat(agent_id, None).expect("emit heartbeat");
+        let hb = liveness
+            .emit_heartbeat(agent_id, None)
+            .expect("emit heartbeat");
         println!("3. Heartbeat sequence {} recorded", hb.sequence_num);
     }
     println!(
@@ -59,13 +78,24 @@ fn main() {
         liveness.validate_chain(agent_id)
     );
     ledger
-        .append(LedgerEventType::LivenessProven, agent_id, "3-heartbeat chain validated".into())
+        .append(
+            LedgerEventType::LivenessProven,
+            agent_id,
+            "3-heartbeat chain validated".into(),
+        )
         .unwrap();
 
     // ── Revoke the session and show the ledger is append-only ───────────
     sessions.revoke_session(session.id).expect("revoke");
     ledger
-        .append(LedgerEventType::SessionRevoked, agent_id, format!("session {} revoked", session.id))
+        .append(
+            LedgerEventType::SessionRevoked,
+            agent_id,
+            format!("session {} revoked", session.id),
+        )
         .unwrap();
-    println!("5. Session revoked. Agency ledger now has {} entries for this agent.", ledger.query_by_agent(agent_id).len());
+    println!(
+        "5. Session revoked. Agency ledger now has {} entries for this agent.",
+        ledger.query_by_agent(agent_id).len()
+    );
 }

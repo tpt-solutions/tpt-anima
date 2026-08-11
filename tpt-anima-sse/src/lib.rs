@@ -42,6 +42,7 @@ pub use memory_node::{
     MemoryId, MemoryMetadata, MemoryNode, SensoryModality, SseError, VectorEmbedding,
 };
 
+pub use ann::AnnIndex;
 pub use causal_graph::{CausalError, CausalGraph};
 pub use decay::{CollectionStats, MemoryType};
 pub use ledger::{CostBreakdown, CostRates, Ledger};
@@ -51,4 +52,3 @@ pub use mcp::{
 };
 pub use sensory::{SensoryError, SensoryIngestionInterface, SensoryManager};
 pub use storage::InMemoryStorage;
-pub use ann::AnnIndex;

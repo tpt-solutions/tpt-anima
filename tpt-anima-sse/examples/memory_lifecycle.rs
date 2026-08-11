@@ -23,18 +23,30 @@ fn main() {
         SensoryModality::Textual,
         agent_id,
     );
-    println!("1. Ingested memory — strength = {:.4}", node.current_strength);
+    println!(
+        "1. Ingested memory — strength = {:.4}",
+        node.current_strength
+    );
 
     // Time passes with no access: exponential decay kicks in.
     node.apply_decay_for(Duration::from_secs(24 * 3600));
-    println!("2. After 24h of decay — strength = {:.4}", node.current_strength);
+    println!(
+        "2. After 24h of decay — strength = {:.4}",
+        node.current_strength
+    );
 
     // Agent queries the same fact again: record_access() reinforces it.
     node.record_access(agent_id);
-    println!("3. Reinforced via record_access() — strength = {:.4}", node.current_strength);
+    println!(
+        "3. Reinforced via record_access() — strength = {:.4}",
+        node.current_strength
+    );
 
     node.apply_decay_for(Duration::from_secs(6 * 24 * 3600));
-    println!("4. After 6 more days of decay — strength = {:.4}", node.current_strength);
+    println!(
+        "4. After 6 more days of decay — strength = {:.4}",
+        node.current_strength
+    );
 
     println!(
         "5. should_prune() = {} (pruning_threshold = {:.2})",

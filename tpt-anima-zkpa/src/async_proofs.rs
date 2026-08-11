@@ -85,11 +85,12 @@ impl AsyncProofGenerator {
         let _tx_for_join = tx.clone();
         tokio::spawn(async move {
             while let Some(job) = rx_internal.recv().await {
-                let permit = concurrency_limit_clone
-                    .clone()
-                    .acquire_owned()
-                    .await
-                    .unwrap();
+                // A poisoned/unavailable semaphore means the generator is
+                // shutting down — stop the worker rather than panicking.
+                let permit = match concurrency_limit_clone.clone().acquire_owned().await {
+                    Ok(permit) => permit,
+                    Err(_) => break,
+                };
                 let tx_result_inner = tx_result_clone.clone();
                 let generator = ProofGenerator::new();
 
@@ -155,8 +156,11 @@ impl AsyncProofGenerator {
     }
 
     /// Receive a completed proof result (blocking).
-    pub async fn recv_result(&self) -> ProofResult {
-        self.rx.lock().await.recv().await.unwrap()
+    ///
+    /// Returns `None` if the result channel has been closed (the generator is
+    /// shutting down) instead of panicking on the closed receiver.
+    pub async fn recv_result(&self) -> Option<ProofResult> {
+        self.rx.lock().await.recv().await
     }
 
     /// Generate proof synchronously (used internally by worker task).
@@ -274,6 +278,17 @@ impl AsyncProofGenerator {
 // Re-export for internal use
 use std::sync::Arc as StdArc;
 use std::sync::Mutex as StdMutex;
+use std::sync::MutexGuard as StdMutexGuard;
+
+/// Acquire a `std::sync::Mutex` guard, recovering from poison instead of
+/// panicking. A poisoned mutex means another thread panicked while holding the
+/// guard; we still want to read/modify the (partially updated) cache state.
+fn lock_poison<T>(mutex: &StdMutex<T>) -> StdMutexGuard<'_, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
 
 // ── Batch Proof Generator ─────────────────────────────────────────────────────
 
@@ -368,12 +383,12 @@ impl ProofCache {
 
     /// Get a cached proof by cache key.
     pub fn get(&self, key: &str) -> Option<ZKProof> {
-        self.cache.lock().unwrap().get(key).cloned()
+        lock_poison(&self.cache).get(key).cloned()
     }
 
     /// Insert a proof into the cache.
     pub fn insert(&self, key: String, proof: ZKProof) {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = lock_poison(&self.cache);
         if cache.len() >= self.max_entries {
             // Simple eviction: clear oldest half
             let keys: Vec<_> = cache.keys().cloned().collect();
@@ -386,7 +401,7 @@ impl ProofCache {
 
     /// Get cache hit rate statistics.
     pub fn stats(&self) -> (usize, usize) {
-        let cache = self.cache.lock().unwrap();
+        let cache = lock_poison(&self.cache);
         (cache.len(), self.max_entries)
     }
 }
