@@ -35,7 +35,7 @@ function Install-Core {
     
     # Register service
     try {
-        New-Service -Name $ServiceName -BinaryPathName "$InstallPath\anima-hypervisor.exe" -DisplayName $ServiceDisplayName
+        New-Service -Name $ServiceName -BinaryPathName "$InstallPath\tpt-anima-hypervisor.exe" -DisplayName $ServiceDisplayName
         Write-Log "Service registered successfully"
     } catch {
         Write-Log "Service may already exist, or registration failed: $_"

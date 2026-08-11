@@ -15,10 +15,10 @@ cargo clippy --workspace -- -D warnings
 cargo test --workspace
 
 # Test a single crate
-cargo test -p anima-sse
+cargo test -p tpt-anima-sse
 
 # Run a single test by name
-cargo test -p anima-sse memory_node::tests::apply_decay_for_follows_exponential_formula
+cargo test -p tpt-anima-sse memory_node::tests::apply_decay_for_follows_exponential_formula
 
 # Format
 cargo fmt --all
@@ -34,16 +34,16 @@ Rustfmt config (`rustfmt.toml`): max_width 100, 4-space tabs, `imports_granulari
 TPT Anima is a four-layer AI runtime rebuilt from first principles. Each layer is a separate workspace crate. Two supporting crates handle external interop and observability.
 
 ```
-anima-sse        — Semantic State Engine   (memory substrate)
-anima-inp        — Intent & Negotiation Protocol (agent nervous system)
-anima-ck         — Cognitive Kernel         (inference scheduler / brainstem)
-anima-zkpa       — Zero-Knowledge Proof of Agency (identity / immune system)
+tpt-anima-sse        — Semantic State Engine   (memory substrate)
+tpt-anima-inp        — Intent & Negotiation Protocol (agent nervous system)
+tpt-anima-ck         — Cognitive Kernel         (inference scheduler / brainstem)
+tpt-anima-zkpa       — Zero-Knowledge Proof of Agency (identity / immune system)
 
-anima-edge-gateway  — INP ↔ MCP/A2A JSON translation for external agents
-anima-observatory   — Real-time telemetry backend (Phase 4, stub)
+tpt-anima-edge-gateway  — INP ↔ MCP/A2A JSON translation for external agents
+tpt-anima-observatory   — Real-time telemetry backend (Phase 4, stub)
 ```
 
-### Layer 1 — SSE (`anima-sse`)
+### Layer 1 — SSE (`tpt-anima-sse`)
 
 The memory substrate. Core type is `MemoryNode`: a vector embedding + raw payload + causal links + temporal decay state + per-node compute ledger. Key design invariants:
 
@@ -53,23 +53,23 @@ The memory substrate. Core type is `MemoryNode`: a vector embedding + raw payloa
 - **Three memory-type presets** in `decay.rs`: `Episodic` (fast decay, λ=0.05), `Semantic` (slow, λ=0.005), `Procedural` (very slow, λ=0.001).
 - MCP exposure in `mcp.rs` defines `mcp://resources/sse/node/{id}`, `mcp://resources/sse/substrate`, and `mcp://resources/sse/causal/{id}` — agents attend via these, not SQL/REST.
 
-### Layer 2 — INP (`anima-inp`)
+### Layer 2 — INP (`tpt-anima-inp`)
 
 The agent nervous system. Agents broadcast `Intent` structs; capability providers respond with `CapabilityBid`s; `NegotiationSession` routes execution through a state machine: `Created → Broadcasting → CollectingBids → Executing → Completed/Failed`. Automatic fallback to next-best provider on failure. `QoSConstraints` bound latency, accuracy, cost, region, and deadline. A `ComputeLedger` tracks credit transfers between agents per negotiation.
 
 `manifest.rs` contains `ManifestParser` — parses human-readable YAML/TOML capability declarations into `CapabilityManifest` structs for registration in `CapabilityRegistry`.
 
-### Layer 3 — ZKPA (`anima-zkpa`)
+### Layer 3 — ZKPA (`tpt-anima-zkpa`)
 
 The immune system. `SessionCredential` is task-scoped and time-limited — no persistent API keys. `ProofGenerator` produces ZK proofs (code integrity, authorization, policy compliance, hardware attestation, liveness, computation correctness, delegation authority). `LivenessMonitor` emits hash-chained heartbeats; gap detection identifies tampered or halted execution. `DelegationManager` enforces parent→child scoped permission constraints with instant cryptographic revocation. `AgencyLedger` is append-only and used for SOC2/HIPAA/FedRAMP compliance export.
 
-### Layer 4 — CK (`anima-ck`)
+### Layer 4 — CK (`tpt-anima-ck`)
 
 The brainstem. Fundamental unit of compute is an `Inference`, not a thread. `InferenceScheduler` uses attention-weight preemption (highest-weight inference wins, not round-robin). `MemoryFabric` abstracts VRAM/RAM/NVMe into a single address space with page-in/page-out and predictive prefetch. `CircuitBreaker` monitors output entropy and repetition loops, halting and rolling back inferences that violate causal integrity (integrates with SSE's `validate_causal_integrity()`). `ThoughtBubble` provides cryptographically isolated sandboxes; compromised bubbles are quarantined without halting the scheduler.
 
-`anima-ck/src/jit/` is declared in `lib.rs` but not yet implemented — the JIT hardware-fluid engine (hardware detection + CUDA/ANE/CPU backends) is Phase 3 work in progress.
+`tpt-anima-ck/src/jit/` is declared in `lib.rs` but not yet implemented — the JIT hardware-fluid engine (hardware detection + CUDA/ANE/CPU backends) is Phase 3 work in progress.
 
-### Edge Gateway (`anima-edge-gateway`)
+### Edge Gateway (`tpt-anima-edge-gateway`)
 
 Translates native INP to/from MCP and A2A JSON for external agent interop. Keeps the internal substrate free of HTTP/JSON. Currently a stub — Phase 2 implementation pending.
 
@@ -78,7 +78,7 @@ Translates native INP to/from MCP and A2A JSON for external agent interop. Keeps
 - **SSE → CK**: `CircuitBreaker` in CK calls SSE's `validate_causal_integrity()` to detect causal violations during inference.
 - **INP → SSE**: `ComputeLedgerEntry` structs in SSE mirror the micro-economy pattern from INP's `ComputeLedger` — same philosophy, per-node tracking.
 - **ZKPA → All**: Every agent operation should carry a `SessionCredential` from ZKPA; the `AgencyLedger` records all authentication/authorization events across all layers.
-- **All → Observatory**: Each layer emits telemetry to `anima-observatory` (Phase 4).
+- **All → Observatory**: Each layer emits telemetry to `tpt-anima-observatory` (Phase 4).
 
 ## `SystemTime` Serialization
 

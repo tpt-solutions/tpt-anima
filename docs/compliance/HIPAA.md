@@ -14,11 +14,11 @@ supply.
 
 | Safeguard | Requirement | Anima support |
 |---|---|---|
-| §164.312(a)(1) Access control | Unique user identification, emergency access, automatic logoff, encryption | `SessionCredential` provides unique, task-scoped, time-limited identity (`anima-zkpa/src/session.rs`). No persistent credentials to leak. Automatic "logoff" is `expires_at` enforcement in `validate_session`. |
-| §164.312(b) Audit controls | Record and examine activity in systems containing ePHI | `AgencyLedger` (`anima-zkpa/src/ledger.rs`) is an append-only log of every authentication/authorization event across all four layers. |
-| §164.312(c)(1) Integrity | Protect ePHI from improper alteration/destruction | `CausalGraph::validate_causal_integrity()` (`anima-sse`) detects cycles/contradictions; `CircuitBreaker` (`anima-ck`) halts and rolls back inference that violates causal integrity. |
-| §164.312(d) Person/entity authentication | Verify identity before granting access | ZK proof generation (`anima-zkpa/src/proofs.rs`: authorization, hardware attestation, delegation-authority proofs) plus continuous liveness heartbeats (`anima-zkpa/src/liveness.rs`) for ongoing verification, not just at login. |
-| §164.312(e)(1) Transmission security | Guard against unauthorized access to ePHI in transit | Edge gateway translates INP↔MCP/A2A at the boundary (`anima-edge-gateway`); internal substrate is never exposed as raw HTTP/JSON. Transport-layer encryption (TLS) for the gateway's external HTTP surface is an infrastructure/deployment concern, not something the crate enforces itself — **verify TLS termination is configured before handling real PHI**. |
+| §164.312(a)(1) Access control | Unique user identification, emergency access, automatic logoff, encryption | `SessionCredential` provides unique, task-scoped, time-limited identity (`tpt-anima-zkpa/src/session.rs`). No persistent credentials to leak. Automatic "logoff" is `expires_at` enforcement in `validate_session`. |
+| §164.312(b) Audit controls | Record and examine activity in systems containing ePHI | `AgencyLedger` (`tpt-anima-zkpa/src/ledger.rs`) is an append-only log of every authentication/authorization event across all four layers. |
+| §164.312(c)(1) Integrity | Protect ePHI from improper alteration/destruction | `CausalGraph::validate_causal_integrity()` (`tpt-anima-sse`) detects cycles/contradictions; `CircuitBreaker` (`tpt-anima-ck`) halts and rolls back inference that violates causal integrity. |
+| §164.312(d) Person/entity authentication | Verify identity before granting access | ZK proof generation (`tpt-anima-zkpa/src/proofs.rs`: authorization, hardware attestation, delegation-authority proofs) plus continuous liveness heartbeats (`tpt-anima-zkpa/src/liveness.rs`) for ongoing verification, not just at login. |
+| §164.312(e)(1) Transmission security | Guard against unauthorized access to ePHI in transit | Edge gateway translates INP↔MCP/A2A at the boundary (`tpt-anima-edge-gateway`); internal substrate is never exposed as raw HTTP/JSON. Transport-layer encryption (TLS) for the gateway's external HTTP surface is an infrastructure/deployment concern, not something the crate enforces itself — **verify TLS termination is configured before handling real PHI**. |
 
 ## What Anima does NOT provide (deployer responsibility)
 
@@ -33,7 +33,7 @@ supply.
 - **Breach notification procedures** — see [Incident Response](../INCIDENT_RESPONSE.md);
   HIPAA's 60-day notification clock and content requirements are a legal
   process built on top of, not inside, the ledger.
-- **Encryption at rest for `MemoryNode` payloads** — `anima-sse/src/storage.rs`
+- **Encryption at rest for `MemoryNode` payloads** — `tpt-anima-sse/src/storage.rs`
   persists raw payloads; whether they are encrypted at rest depends on the
   underlying storage backend configuration, not the crate.
 

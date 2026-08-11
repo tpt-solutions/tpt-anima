@@ -1,16 +1,16 @@
 [workspace]
 resolver = "2"
 members = [
-    "anima-sse",
-    "anima-inp",
-    "anima-ck",
-    "anima-zkpa",
-    "anima-observatory",
-    "anima-edge-gateway",
-    "anima-edge-runtime",
-    "anima-tests",
-    "anima-core-hypervisor",
-    "anima-co-processor",
+    "tpt-anima-sse",
+    "tpt-anima-inp",
+    "tpt-anima-ck",
+    "tpt-anima-zkpa",
+    "tpt-anima-observatory",
+    "tpt-anima-edge-gateway",
+    "tpt-anima-edge-runtime",
+    "tpt-anima-tests",
+    "tpt-anima-core-hypervisor",
+    "tpt-anima-co-processor",
 ]
 
 [workspace.package]

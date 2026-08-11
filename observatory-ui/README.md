@@ -1,14 +1,14 @@
 # Anima Observatory UI
 
-This is the GUI for [TPT Anima](../README.md) — a React + TypeScript + Vite dashboard that visualizes what the four layers (SSE, INP, CK, ZKPA) are doing in real time. It connects over WebSocket to the `anima-observatory` Rust crate, which aggregates telemetry from the rest of the workspace.
+This is the GUI for [TPT Anima](../README.md) — a React + TypeScript + Vite dashboard that visualizes what the four layers (SSE, INP, CK, ZKPA) are doing in real time. It connects over WebSocket to the `tpt-anima-observatory` Rust crate, which aggregates telemetry from the rest of the workspace.
 
-Panels: **Swarm Map** (INP intent/negotiation flow), **Memory Topography** (SSE nodes and decay), **Inference Pulse** (CK hardware scheduling), **Agency Ledger** (ZKPA audit log), **Economic Flow** (compute-credit transfers). See the root [README's Observatory section](../README.md#the-anima-observatory) for what each panel means.
+Panels: **Swarm Map** (INP intent/negotiation flow), **Memory Topography** (SSE nodes and decay), **Inference Pulse** (CK hardware scheduling), **Agency Ledger** (ZKPA audit log), **Economic Flow** (compute-credit transfers). See the root [README's Observatory section](../README.md#the-tpt-anima-observatory) for what each panel means.
 
 ## Running locally
 
 ```bash
 # Terminal 1: start the telemetry backend
-cd ../anima-observatory
+cd ../tpt-anima-observatory
 cargo run
 
 # Terminal 2: start this UI

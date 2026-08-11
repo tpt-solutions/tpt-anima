@@ -8,10 +8,10 @@ TPT Anima provides four core crates that implement a living, probabilistic softw
 
 | Crate | Layer | Description |
 |-------|-------|-------------|
-| `anima-sse` | Semantic State Engine | Memory as semantic tensors with temporal dynamics |
-| `anima-inp` | Intent & Negotiation Protocol | Agent-to-agent goal coordination |
-| `anima-ck` | Cognitive Kernel | Inference-based compute scheduling |
-| `anima-zkpa` | Zero-Knowledge Proof of Agency | Ephemeral cryptographic identity |
+| `tpt-anima-sse` | Semantic State Engine | Memory as semantic tensors with temporal dynamics |
+| `tpt-anima-inp` | Intent & Negotiation Protocol | Agent-to-agent goal coordination |
+| `tpt-anima-ck` | Cognitive Kernel | Inference-based compute scheduling |
+| `tpt-anima-zkpa` | Zero-Knowledge Proof of Agency | Ephemeral cryptographic identity |
 
 ---
 
@@ -20,7 +20,7 @@ TPT Anima provides four core crates that implement a living, probabilistic softw
 ### MemoryNode
 
 ```rust
-use anima_sse::memory_node::{MemoryNode, SensoryModality, VectorEmbedding};
+use tpt_anima_sse::memory_node::{MemoryNode, SensoryModality, VectorEmbedding};
 
 // Create a memory node with embedding
 let node = MemoryNode::new(
@@ -36,7 +36,7 @@ let node = MemoryNode::new(
 ### Storage
 
 ```rust
-use anima_sse::storage::InMemoryStorage;
+use tpt_anima_sse::storage::InMemoryStorage;
 
 let mut storage = InMemoryStorage::new();
 storage.write_node(node);
@@ -48,7 +48,7 @@ storage.prune_pass(); // Remove nodes below pruning threshold
 ### Causal Graph
 
 ```rust
-use anima_sse::causal_graph::CausalGraph;
+use tpt_anima_sse::causal_graph::CausalGraph;
 
 let mut graph = CausalGraph::new();
 graph.add_link(node_a_id, node_b_id, CausalLinkType::Caused)?;
@@ -58,7 +58,7 @@ let chain = graph.get_context_chain(node_id)?;
 ### Decay Engine
 
 ```rust
-use anima_sse::decay::{apply_decay, prune_collection};
+use tpt_anima_sse::decay::{apply_decay, prune_collection};
 use std::time::Duration;
 
 apply_decay(&mut node, Duration::from_secs(3600));
@@ -72,7 +72,7 @@ let pruned_count = prune_collection(&mut nodes);
 ### Intent
 
 ```rust
-use anima_inp::intent::{Intent, QoSConstraints, EconomicTerms};
+use tpt_anima_inp::intent::{Intent, QoSConstraints, EconomicTerms};
 
 let intent = Intent::new(
     action: "analyze".to_string(),
@@ -90,7 +90,7 @@ let intent = Intent::new(
 ### Capability Registry
 
 ```rust
-use anima_inp::registry::CapabilityRegistry;
+use tpt_anima_inp::registry::CapabilityRegistry;
 
 let mut registry = CapabilityRegistry::new();
 let cap_id = registry.register(Capability::new(
@@ -106,7 +106,7 @@ let providers = registry.lookup_by_action("compute");
 ### Negotiation
 
 ```rust
-use anima_inp::negotiation::NegotiationManager;
+use tpt_anima_inp::negotiation::NegotiationManager;
 
 let mut manager = NegotiationManager::default();
 let intent_id = manager.start_negotiation(intent, &registry);
@@ -117,7 +117,7 @@ let (completed_id, winner) = manager.finalize_and_select(&intent_id)?;
 ### Compute Ledger
 
 ```rust
-use anima_inp::ledger::ComputeLedger;
+use tpt_anima_inp::ledger::ComputeLedger;
 
 let mut ledger = ComputeLedger::new();
 ledger.ensure_agent(agent_a);
@@ -139,7 +139,7 @@ let transaction = ledger.transfer(
 ### Inference
 
 ```rust
-use anima_ck::{InferenceScheduler, InferencePriority, make_ck_inference};
+use tpt_anima_ck::{InferenceScheduler, InferencePriority, make_ck_inference};
 
 let mut scheduler = InferenceScheduler::new();
 let inference = make_ck_inference(
@@ -153,7 +153,7 @@ let job = scheduler.schedule_next()?;
 ### Circuit Breaker
 
 ```rust
-use anima_ck::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+use tpt_anima_ck::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 
 let breaker = CircuitBreaker::new(CircuitBreakerConfig {
     entropy_threshold: 0.8,
@@ -168,7 +168,7 @@ breaker.detect_repetition(inference_id, current_path)?;
 ### Memory Fabric
 
 ```rust
-use anima_ck::memory_fabric::MemoryFabric;
+use tpt_anima_ck::memory_fabric::MemoryFabric;
 
 let fabric = MemoryFabric::new();
 fabric.page_in(token_sequence)?;
@@ -182,7 +182,7 @@ fabric.prefetch_context(prediction: &AccessPattern)?;
 ### Session Management
 
 ```rust
-use anima_zkpa::session::SessionManager;
+use tpt_anima_zkpa::session::SessionManager;
 use std::time::Duration;
 
 let mut sessions = SessionManager::new();
@@ -200,8 +200,8 @@ sessions.validate_session(session.id)?;
 ### Proof Generation
 
 ```rust
-use anima_zkpa::proofs::ProofGenerator;
-use anima_zkpa::types::ZKCircuit;
+use tpt_anima_zkpa::proofs::ProofGenerator;
+use tpt_anima_zkpa::types::ZKCircuit;
 
 let gen = ProofGenerator::new();
 let circuit = ZKCircuit::new("code_integrity", ProofSystem::PLONK);
@@ -215,7 +215,7 @@ let proof = gen.generate_code_integrity_proof(
 ### Attestation
 
 ```rust
-use anima_zkpa::attestation;
+use tpt_anima_zkpa::attestation;
 
 // Platform-specific attestation (TPM, TrustZone, SGX, etc.)
 let attestation = attestation::attest_platform(Platform::TPM)?;
@@ -224,8 +224,8 @@ let attestation = attestation::attest_platform(Platform::TPM)?;
 ### Agency Ledger
 
 ```rust
-use anima_zkpa::ledger::AgencyLedger;
-use anima_zkpa::types::LedgerEventType;
+use tpt_anima_zkpa::ledger::AgencyLedger;
+use tpt_anima_zkpa::types::LedgerEventType;
 
 let mut ledger = AgencyLedger::new();
 ledger.append(
@@ -245,7 +245,7 @@ let soc2_report = ledger.generate_compliance_report("SOC2")?;
 ### Tier Enumeration
 
 ```rust
-use anima_edge_runtime::cross_tier::{Tier, TierCapabilities, TierRole};
+use tpt_anima_edge_runtime::cross_tier::{Tier, TierCapabilities, TierRole};
 
 // Tier::CoreHypervisor    - Bare-metal full stack
 // Tier::CoProcessor       - eBPF/kernel driver interception
@@ -255,7 +255,7 @@ use anima_edge_runtime::cross_tier::{Tier, TierCapabilities, TierRole};
 ### Cross-Tier Envelope
 
 ```rust
-use anima_edge_runtime::cross_tier::{
+use tpt_anima_edge_runtime::cross_tier::{
     EnvelopeBuilder, CrossTierPayload, serialize_envelope, deserialize_envelope,
 };
 
@@ -277,7 +277,7 @@ let recovered = deserialize_envelope(&bytes)?;
 ### Telemetry Collection
 
 ```rust
-use anima_observatory::{TelemetryCollector, TelemetryEvent, SwarmMapData, MemoryTopographyData};
+use tpt_anima_observatory::{TelemetryCollector, TelemetryEvent, SwarmMapData, MemoryTopographyData};
 
 let mut collector = TelemetryCollector::new();
 collector.record(TelemetryEvent::SSE(SseEvent::MemoryAccessed {

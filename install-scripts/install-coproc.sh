@@ -6,7 +6,7 @@ set -e
 
 INSTALL_PATH="${INSTALL_PATH:-/opt/anima}"
 UNINSTALL="${UNINSTALL:-false}"
-SYSTEMD_SERVICE_NAME="anima-coproc"
+SYSTEMD_SERVICE_NAME="tpt-anima-co-processor"
 
 log() {
     echo "[Anima] $1"
@@ -30,7 +30,7 @@ install_coproc() {
     sudo mkdir -p "$INSTALL_PATH"
     
     # Copy binaries
-    # In production: cp target/release/anima-coproc $INSTALL_PATH/
+    # In production: cp target/release/tpt-anima-co-processor $INSTALL_PATH/
     log "Copying co-processor binaries..."
     
     # Install systemd service
@@ -41,7 +41,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$INSTALL_PATH/anima-coproc
+ExecStart=$INSTALL_PATH/tpt-anima-co-processor
 Restart=always
 CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SYS_PTRACE
 AmbientCapabilities=CAP_SYS_ADMIN CAP_SYS_PTRACE

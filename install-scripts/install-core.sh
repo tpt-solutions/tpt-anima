@@ -20,7 +20,7 @@ install_core() {
     sudo mkdir -p "$INSTALL_PATH/ovmf"
     
     # Copy hypervisor binaries
-    # In production: cp target/release/anima-hypervisor $INSTALL_PATH/
+    # In production: cp target/release/tpt-anima-hypervisor $INSTALL_PATH/
     log "Copying hypervisor binaries..."
     
     # Install GRUB boot entry for bare-metal boot
@@ -32,7 +32,7 @@ install_core() {
 menuentry 'Anima Core Hypervisor' {
     insmod part_gpt
     insmod ext2
-    linux ($root)/anima-hypervisor console=tty0 root=/dev/sda1
+    linux ($root)/tpt-anima-hypervisor console=tty0 root=/dev/sda1
     initrd ($root)/anima-initramfs.img
 }
 EOF
@@ -55,7 +55,7 @@ uninstall_core() {
     
     # Remove GRUB entry
     sudo sed -i '/Anima Core Hypervisor/d' "$GRUB_CFG" 2>/dev/null || true
-    sudo sed -i '/anima-hypervisor/d' "$GRUB_CFG" 2>/dev/null || true
+    sudo sed -i '/tpt-anima-hypervisor/d' "$GRUB_CFG" 2>/dev/null || true
     
     sudo rm -rf "$INSTALL_PATH"
     

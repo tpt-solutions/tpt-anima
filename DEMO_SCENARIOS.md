@@ -104,7 +104,7 @@ This demo provides a guided tour of the Observatory UI, showing all four visuali
 
 ### Steps
 1. **Launch Observatory**
-   - Start `anima-observatory` backend
+   - Start `tpt-anima-observatory` backend
    - Open `observatory-ui` in browser
    - WebSocket connection established
 
@@ -155,7 +155,7 @@ This demo provides a guided tour of the Observatory UI, showing all four visuali
 
 ```bash
 # Terminal 1: Start backend
-cd anima-observatory
+cd tpt-anima-observatory
 cargo run
 
 # Terminal 2: Start UI

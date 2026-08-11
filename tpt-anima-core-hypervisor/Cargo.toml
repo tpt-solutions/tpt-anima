@@ -1,0 +1,27 @@
+[package]
+keywords   = ["hypervisor", "virtualization", "bare-metal", "system-software", "orchestration"]
+categories = ["os", "hardware-support", "science"]
+name = "tpt-anima-core-hypervisor"
+description = "Tier 1 Anima Core Hypervisor — Type-1 bare-metal hypervisor for full Anima stack"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tpt-anima-hypervisor"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tpt-anima-sse = { path = "../tpt-anima-sse" }
+tpt-anima-inp = { path = "../tpt-anima-inp" }
+tpt-anima-ck = { path = "../tpt-anima-ck" }
+tpt-anima-zkpa = { path = "../tpt-anima-zkpa" }
+tpt-anima-edge-runtime = { path = "../tpt-anima-edge-runtime" }

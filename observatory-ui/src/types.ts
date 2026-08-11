@@ -1,6 +1,6 @@
-// Wire types matching the real Rust backend (anima-observatory) serde output.
-// See anima-observatory/src/lib.rs (TelemetryEvent, SseEvent, InpEvent,
-// CkEvent, ZkpaEvent) and anima-observatory/src/server.rs (BroadcastMessage).
+// Wire types matching the real Rust backend (tpt-anima-observatory) serde output.
+// See tpt-anima-observatory/src/lib.rs (TelemetryEvent, SseEvent, InpEvent,
+// CkEvent, ZkpaEvent) and tpt-anima-observatory/src/server.rs (BroadcastMessage).
 
 export type Layer = 'SSE' | 'INP' | 'CK' | 'ZKPA';
 

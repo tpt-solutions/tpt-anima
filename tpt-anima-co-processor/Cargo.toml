@@ -1,0 +1,28 @@
+[package]
+keywords   = ["ebpf", "kernel", "driver", "workload-intercept", "ai-infrastructure"]
+categories = ["os", "hardware-support", "science"]
+name = "tpt-anima-co-processor"
+description = "Tier 2 Co-Processor — eBPF kernel module (Linux) + Windows driver for AI workload interception"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tpt-anima-sse = { path = "../tpt-anima-sse" }
+tpt-anima-inp = { path = "../tpt-anima-inp" }
+tpt-anima-edge-runtime = { path = "../tpt-anima-edge-runtime" }
+
+# aya is a pure-Rust eBPF library; it only makes sense (and only builds cleanly) on
+# Linux, which is the only platform with an eBPF verifier/loader in the kernel. Gating
+# it here keeps non-Linux builds (including this Windows dev machine) from ever
+# attempting to compile it.
+[target.'cfg(target_os = "linux")'.dependencies]
+aya = "0.14"

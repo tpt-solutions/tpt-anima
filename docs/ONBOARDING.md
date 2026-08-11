@@ -31,7 +31,7 @@ The fastest way to explore Anima is through the Observatory UI.
 
 ```bash
 # Terminal 1: Start the backend
-cd anima-observatory
+cd tpt-anima-observatory
 cargo run
 
 # Terminal 2: Start the UI
@@ -64,7 +64,7 @@ Full hardware control with legacy OS virtualization.
 
 ```bash
 # Build from source (requires signed binaries for production)
-cargo build --release -p anima-core-hypervisor
+cargo build --release -p tpt-anima-core-hypervisor
 
 # Install on Windows
 ./install-scripts/install-core.ps1
@@ -91,10 +91,10 @@ WebAssembly and native Rust binaries for resource-constrained devices.
 
 ```bash
 # Build WASM module
-cargo build --target wasm32-wasi -p anima-edge-runtime
+cargo build --target wasm32-wasi -p tpt-anima-edge-runtime
 
 # Build native binary
-cargo build --release -p anima-edge-runtime
+cargo build --release -p tpt-anima-edge-runtime
 
 # Install
 ./install-scripts/install-edge.sh
@@ -110,10 +110,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-anima-sse = "0.1"
-anima-inp = "0.1"
-anima-ck = "0.1"
-anima-zkpa = "0.1"
+tpt-anima-sse = "0.1"
+tpt-anima-inp = "0.1"
+tpt-anima-ck = "0.1"
+tpt-anima-zkpa = "0.1"
 uuid = { version = "1", features = ["v4"] }
 rand = "0.8"
 ```
@@ -123,15 +123,15 @@ rand = "0.8"
 Note: SSE's `AgentId`/`MemoryId` are raw `[u8; 32]`, while INP's and ZKPA's `AgentId` is a `Uuid` — this is intentional per-crate type isolation (see `CLAUDE.md`), not an oversight, so the two id kinds below are deliberately separate values.
 
 For a compiling, runnable version of this same walkthrough, see
-`anima-observatory/examples/full_stack_quickstart.rs`
-(`cargo run -p anima-observatory --example full_stack_quickstart`).
+`tpt-anima-observatory/examples/full_stack_quickstart.rs`
+(`cargo run -p tpt-anima-observatory --example full_stack_quickstart`).
 
 ```rust
-use anima_sse::{MemoryNode, VectorEmbedding, SensoryModality};
-use anima_inp::{
+use tpt_anima_sse::{MemoryNode, VectorEmbedding, SensoryModality};
+use tpt_anima_inp::{
     Intent, Capability, CapabilityRegistry, QoSConstraints, EconomicTerms, PerformanceProfile,
 };
-use anima_zkpa::session::SessionManager;
+use tpt_anima_zkpa::session::SessionManager;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -149,8 +149,8 @@ let session = sessions.create_session(
 );
 
 // 2. Store a memory in SSE (uses SSE's own [u8; 32] id space)
-let node_id: anima_sse::MemoryId = [1u8; 32];
-let sse_agent_id: anima_sse::AgentId = [2u8; 32];
+let node_id: tpt_anima_sse::MemoryId = [1u8; 32];
+let sse_agent_id: tpt_anima_sse::AgentId = [2u8; 32];
 let memory = MemoryNode::new(
     node_id,
     VectorEmbedding::new(vec![0.5, 0.3, 0.2]),
@@ -216,7 +216,7 @@ let intent = Intent::new(
 ```rust
 // Instead of: SELECT * FROM memory WHERE id = ?
 // Use: Attend to the most relevant memories, ranked by current strength
-let relevant: Vec<&anima_sse::MemoryNode> = storage.attention_retrieve(10);
+let relevant: Vec<&tpt_anima_sse::MemoryNode> = storage.attention_retrieve(10);
 ```
 
 ### Intent Negotiation Pattern
@@ -224,9 +224,9 @@ let relevant: Vec<&anima_sse::MemoryNode> = storage.attention_retrieve(10);
 ```rust
 // Instead of: POST /api/endpoint
 // Use: Broadcast an intent, collect bids, and pick a winner — all synchronous,
-// no HTTP round-trip. See examples/negotiation_swarm.rs (anima-inp) for the
+// no HTTP round-trip. See examples/negotiation_swarm.rs (tpt-anima-inp) for the
 // full flow including a ComputeLedger credit transfer.
-let mut session = anima_inp::NegotiationSession::new(intent);
+let mut session = tpt_anima_inp::NegotiationSession::new(intent);
 session.start_broadcasting();
 session.start_collecting();
 session.add_bid(bid);
@@ -237,7 +237,7 @@ let winner = session.bids.iter().max_by(|a, b| a.estimated_accuracy.total_cmp(&b
 
 ```rust
 // Check hardware thermal status before scheduling large inference
-use anima_ck::budgeting::ThermalStatus;
+use tpt_anima_ck::budgeting::ThermalStatus;
 
 if matches!(budget_manager.thermal_status(), ThermalStatus::Hot | ThermalStatus::Critical) {
     // Defer or reduce precision

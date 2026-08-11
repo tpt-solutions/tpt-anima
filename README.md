@@ -15,17 +15,17 @@ Not yet published to crates.io — add it as a git dependency:
 
 ```toml
 [dependencies]
-anima-sse  = { git = "https://github.com/PhillipC05/tpt-anima" }
-anima-inp  = { git = "https://github.com/PhillipC05/tpt-anima" }
-anima-ck   = { git = "https://github.com/PhillipC05/tpt-anima" }
-anima-zkpa = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-sse  = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-inp  = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-ck   = { git = "https://github.com/PhillipC05/tpt-anima" }
+tpt-anima-zkpa = { git = "https://github.com/PhillipC05/tpt-anima" }
 ```
 
 The smallest possible example — ingest a memory into the Semantic State Engine and watch it decay and reinforce:
 
 ```rust
 use std::time::Duration;
-use anima_sse::{InMemoryStorage, MemoryNode, SensoryModality, VectorEmbedding};
+use tpt_anima_sse::{InMemoryStorage, MemoryNode, SensoryModality, VectorEmbedding};
 
 let mut storage = InMemoryStorage::new();
 let mut node = MemoryNode::new(
@@ -49,11 +49,11 @@ Each core crate ships a self-contained, working example:
 
 | Crate | Command | What it shows |
 |-------|---------|----------------|
-| `anima-sse` | `cargo run -p anima-sse --example memory_lifecycle` | Ingest → decay → reinforce → prune a memory node |
-| `anima-inp` | `cargo run -p anima-inp --example negotiation_swarm` | Broadcast an intent, collect competing bids, transfer compute credits |
-| `anima-ck` | `cargo run -p anima-ck --example inference_scheduling` | Attention-weight preemption in the inference scheduler + a `ThoughtBubble` sandbox |
-| `anima-zkpa` | `cargo run -p anima-zkpa --example session_and_attestation` | Ephemeral session, real ZK proof generation/verification, hash-chained liveness |
-| `anima-observatory` | `cargo run -p anima-observatory --example full_stack_quickstart` | Golden path across all four layers in one request: memory → negotiation → session → thermal budget check |
+| `tpt-anima-sse` | `cargo run -p tpt-anima-sse --example memory_lifecycle` | Ingest → decay → reinforce → prune a memory node |
+| `tpt-anima-inp` | `cargo run -p tpt-anima-inp --example negotiation_swarm` | Broadcast an intent, collect competing bids, transfer compute credits |
+| `tpt-anima-ck` | `cargo run -p tpt-anima-ck --example inference_scheduling` | Attention-weight preemption in the inference scheduler + a `ThoughtBubble` sandbox |
+| `tpt-anima-zkpa` | `cargo run -p tpt-anima-zkpa --example session_and_attestation` | Ephemeral session, real ZK proof generation/verification, hash-chained liveness |
+| `tpt-anima-observatory` | `cargo run -p tpt-anima-observatory --example full_stack_quickstart` | Golden path across all four layers in one request: memory → negotiation → session → thermal budget check |
 
 ---
 
@@ -65,7 +65,7 @@ The fastest way to see Anima in action:
 
 ```bash
 # Terminal 1: start the Observatory telemetry backend
-cd anima-observatory
+cd tpt-anima-observatory
 cargo run
 
 # Terminal 2: start the Observatory UI
@@ -86,17 +86,17 @@ For the full walkthrough — deployment tiers, embedding Anima's crates in your 
 
 | Layer | Crate | Replaces | Tagline |
 |-------|-------|----------|---------|
-| **Semantic State Engine (SSE)** | `anima-sse` | Relational DBs, Vector DBs, Key-Value Stores | *Memory is attended, not queried* |
-| **Intent & Negotiation Protocol (INP)** | `anima-inp` | REST, gRPC, GraphQL, Message Queues | *Agents pursue outcomes, not endpoints* |
-| **Zero-Knowledge Proof of Agency (ZKPA)** | `anima-zkpa` | OAuth, API Keys, IAM, Certificate Authorities | *Identity is ephemeral and provable* |
-| **Cognitive Kernel (CK)** | `anima-ck` | Linux, Windows, thread schedulers, container runtimes | *The unit of compute is an inference* |
+| **Semantic State Engine (SSE)** | `tpt-anima-sse` | Relational DBs, Vector DBs, Key-Value Stores | *Memory is attended, not queried* |
+| **Intent & Negotiation Protocol (INP)** | `tpt-anima-inp` | REST, gRPC, GraphQL, Message Queues | *Agents pursue outcomes, not endpoints* |
+| **Zero-Knowledge Proof of Agency (ZKPA)** | `tpt-anima-zkpa` | OAuth, API Keys, IAM, Certificate Authorities | *Identity is ephemeral and provable* |
+| **Cognitive Kernel (CK)** | `tpt-anima-ck` | Linux, Windows, thread schedulers, container runtimes | *The unit of compute is an inference* |
 
 ### Supporting Crates
 
 | Crate | Role |
 |-------|------|
-| `anima-observatory` | Real-time human telemetry window — translates machine-speed cognition into observable, auditable visualisations |
-| `anima-edge-gateway` | Lightweight translation layer: native INP ↔ MCP/A2A JSON, preserving internal philosophical purity |
+| `tpt-anima-observatory` | Real-time human telemetry window — translates machine-speed cognition into observable, auditable visualisations |
+| `tpt-anima-edge-gateway` | Lightweight translation layer: native INP ↔ MCP/A2A JSON, preserving internal philosophical purity |
 
 ---
 
@@ -118,7 +118,7 @@ The brainstem. The fundamental compute unit is an *inference*, not a thread. The
 
 ## The Anima Observatory
 
-This is Anima's GUI — see [Getting Started](#getting-started) above to run it locally. It's a React/Vite frontend (`observatory-ui/`) fed by a WebSocket telemetry server (`anima-observatory/`), and translates machine-speed AI cognition into human-speed telemetry:
+This is Anima's GUI — see [Getting Started](#getting-started) above to run it locally. It's a React/Vite frontend (`observatory-ui/`) fed by a WebSocket telemetry server (`tpt-anima-observatory/`), and translates machine-speed AI cognition into human-speed telemetry:
 
 - **Swarm Map** — real-time node-graph of INP intent pulses and negotiation outcomes
 - **Memory Topography** — 2D/3D cluster view of SSE nodes glowing and fading with temporal decay

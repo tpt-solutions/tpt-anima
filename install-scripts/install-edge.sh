@@ -6,7 +6,7 @@ set -e
 
 INSTALL_PATH="${INSTALL_PATH:-/usr/local/bin}"
 UNINSTALL="${UNINSTALL:-false}"
-SERVICE_NAME="anima-edge"
+SERVICE_NAME="tpt-anima-edge-runtime"
 
 log() {
     echo "[Anima] $1"
@@ -16,8 +16,8 @@ install_edge() {
     log "Installing Anima Edge Runtime to $INSTALL_PATH"
     
     # Copy WASM module and native binary
-    # In production: cp target/wasm32-wasi/release/anima_edge.wasm $INSTALL_PATH/
-    # In production: cp target/release/anima-edge $INSTALL_PATH/
+    # In production: cp target/wasm32-wasi/release/tpt_anima_edge_runtime.wasm $INSTALL_PATH/
+    # In production: cp target/release/tpt-anima-edge-runtime $INSTALL_PATH/
     
     log "Installing WebAssembly module..."
     log "Installing native binary for phones/IoT..."
@@ -33,7 +33,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$INSTALL_PATH/anima-edge
+ExecStart=$INSTALL_PATH/tpt-anima-edge-runtime
 Restart=always
 
 [Install]
@@ -53,8 +53,8 @@ EOF
 uninstall_edge() {
     log "Uninstalling Anima Edge Runtime..."
     
-    rm -f "$INSTALL_PATH/anima-edge"
-    rm -f "$INSTALL_PATH/anima_edge.wasm" 2>/dev/null || true
+    rm -f "$INSTALL_PATH/tpt-anima-edge-runtime"
+    rm -f "$INSTALL_PATH/tpt_anima_edge_runtime.wasm" 2>/dev/null || true
     
     if command -v systemctl &> /dev/null; then
         rm -f ~/.config/systemd/user/$SERVICE_NAME.service

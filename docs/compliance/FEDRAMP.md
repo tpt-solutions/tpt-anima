@@ -20,11 +20,11 @@ national-security-adjacent or law-enforcement data.
 
 | NIST 800-53 Family | Relevant Anima capability |
 |---|---|
-| AC (Access Control) | `SessionCredential` scoping + `DelegationManager` least-privilege delegation (`anima-zkpa`) |
-| AU (Audit & Accountability) | `AgencyLedger` append-only event log (`anima-zkpa/src/ledger.rs`) |
+| AC (Access Control) | `SessionCredential` scoping + `DelegationManager` least-privilege delegation (`tpt-anima-zkpa`) |
+| AU (Audit & Accountability) | `AgencyLedger` append-only event log (`tpt-anima-zkpa/src/ledger.rs`) |
 | IA (Identification & Authentication) | ZK authorization/hardware-attestation proofs, continuous liveness heartbeats |
-| SC (System & Communications Protection) | Edge gateway boundary translation (`anima-edge-gateway`); cryptographically isolated `ThoughtBubble` sandboxes (`anima-ck/src/thought_bubble.rs`) |
-| SI (System & Information Integrity) | `CircuitBreaker` entropy/repetition/causal-integrity monitoring (`anima-ck/src/circuit_breaker.rs`) |
+| SC (System & Communications Protection) | Edge gateway boundary translation (`tpt-anima-edge-gateway`); cryptographically isolated `ThoughtBubble` sandboxes (`tpt-anima-ck/src/thought_bubble.rs`) |
+| SI (System & Information Integrity) | `CircuitBreaker` entropy/repetition/causal-integrity monitoring (`tpt-anima-ck/src/circuit_breaker.rs`) |
 | CP (Contingency Planning) | See [Incident Response](../INCIDENT_RESPONSE.md) — DR/contingency procedures are organizational, not implemented in-crate |
 | CM (Configuration Management) | Cargo workspace pinning + `cargo clippy -D warnings` gate provide a reproducible, linted build; formal CM plan/change-board process is organizational |
 

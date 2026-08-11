@@ -12,16 +12,16 @@ period (typically 6–12 months) and cannot be self-certified.
 
 | TSC Category | Control | Implementation |
 |---|---|---|
-| CC6.1 — Logical access | Task-scoped, time-limited credentials (no persistent API keys) | `anima-zkpa/src/session.rs::SessionCredential`, `SessionManager::validate_session` enforces `expires_at` |
-| CC6.1 — Least privilege | Delegated authority cannot exceed the delegator's own granted scope | `anima-zkpa/src/delegation.rs::DelegationManager::delegate` (permission-subset check) |
+| CC6.1 — Logical access | Task-scoped, time-limited credentials (no persistent API keys) | `tpt-anima-zkpa/src/session.rs::SessionCredential`, `SessionManager::validate_session` enforces `expires_at` |
+| CC6.1 — Least privilege | Delegated authority cannot exceed the delegator's own granted scope | `tpt-anima-zkpa/src/delegation.rs::DelegationManager::delegate` (permission-subset check) |
 | CC6.1 — Revocation | Instant, cryptographically witnessed revocation | `DelegationManager::revoke`, `AuthorityDelegation::revocation_witness` |
-| CC6.6 — Boundary protection | Hardware-attested execution contexts | `anima-zkpa/src/attestation.rs` (TPM, SGX, TrustZone, NVIDIA CC, Apple SE) |
-| CC6.7 — Data transmission | INP/A2A/MCP payload envelopes are versioned and validated before execution | `anima-inp/src/contracts.rs` |
-| CC7.1 — Anomaly detection | Continuous liveness heartbeats with tamper/gap detection | `anima-zkpa/src/liveness.rs::LivenessMonitor::detect_gaps` |
-| CC7.2 — Incident monitoring | Output entropy and repetition-loop monitoring halts and rolls back compromised inference | `anima-ck/src/circuit_breaker.rs` |
-| CC7.3 — Change/causal integrity | Cycle and contradiction detection across the causal memory graph | `anima-sse` `validate_causal_integrity()` |
-| CC8.1 — Audit logging | Append-only, immutable event ledger | `anima-zkpa/src/ledger.rs::AgencyLedger` |
-| A1.2 — Capacity/availability | Thermal- and power-constrained compute allocation prevents hardware-driven outages | `anima-ck/src/budgeting.rs::BudgetManager` (per-tier throttling) |
+| CC6.6 — Boundary protection | Hardware-attested execution contexts | `tpt-anima-zkpa/src/attestation.rs` (TPM, SGX, TrustZone, NVIDIA CC, Apple SE) |
+| CC6.7 — Data transmission | INP/A2A/MCP payload envelopes are versioned and validated before execution | `tpt-anima-inp/src/contracts.rs` |
+| CC7.1 — Anomaly detection | Continuous liveness heartbeats with tamper/gap detection | `tpt-anima-zkpa/src/liveness.rs::LivenessMonitor::detect_gaps` |
+| CC7.2 — Incident monitoring | Output entropy and repetition-loop monitoring halts and rolls back compromised inference | `tpt-anima-ck/src/circuit_breaker.rs` |
+| CC7.3 — Change/causal integrity | Cycle and contradiction detection across the causal memory graph | `tpt-anima-sse` `validate_causal_integrity()` |
+| CC8.1 — Audit logging | Append-only, immutable event ledger | `tpt-anima-zkpa/src/ledger.rs::AgencyLedger` |
+| A1.2 — Capacity/availability | Thermal- and power-constrained compute allocation prevents hardware-driven outages | `tpt-anima-ck/src/budgeting.rs::BudgetManager` (per-tier throttling) |
 
 ## What already exists
 

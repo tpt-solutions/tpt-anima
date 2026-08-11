@@ -34,7 +34,7 @@ sudo ./install-core.sh
 **Linux (eBPF):**
 ```bash
 sudo ./install-coproc.sh
-sudo systemctl start anima-coproc
+sudo systemctl start tpt-anima-co-processor
 ```
 
 **Windows:**

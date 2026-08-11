@@ -1,0 +1,23 @@
+[package]
+keywords   = ["integration-tests", "testing", "anima"]
+categories = ["development-tools", "testing"]
+name = "tpt-anima-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+tpt-anima-sse      = { path = "../tpt-anima-sse" }
+tpt-anima-inp      = { path = "../tpt-anima-inp" }
+tpt-anima-ck       = { path = "../tpt-anima-ck" }
+tpt-anima-zkpa     = { path = "../tpt-anima-zkpa" }
+tpt-anima-observatory = { path = "../tpt-anima-observatory" }
+serde          = { workspace = true }
+serde_json     = { workspace = true }
+uuid           = { workspace = true }
+sha2           = { workspace = true }
+thiserror      = { workspace = true }
+hex            = "0.4"
+rand           = "0.8"
+

@@ -1,0 +1,27 @@
+[package]
+keywords   = ["telemetry", "observability", "visualization", "websocket", "monitoring"]
+categories = ["visualization", "network-programming", "science"]
+name        = "tpt-anima-observatory"
+description = "Anima Observatory — real-time human telemetry window for TPT Anima"
+version.workspace    = true
+edition.workspace    = true
+license.workspace    = true
+authors.workspace    = true
+repository.workspace = true
+
+[[bin]]
+name = "tpt-anima-observatory"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace      = true
+serde_json.workspace = true
+tokio.workspace      = true
+thiserror.workspace  = true
+uuid.workspace       = true
+axum                 = { version = "0.7", features = ["ws"] }
+tpt-anima-sse            = { path = "../tpt-anima-sse" }
+tpt-anima-inp            = { path = "../tpt-anima-inp" }
+tpt-anima-ck             = { path = "../tpt-anima-ck" }
+tpt-anima-zkpa           = { path = "../tpt-anima-zkpa" }
+

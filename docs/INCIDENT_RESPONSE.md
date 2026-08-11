@@ -41,9 +41,9 @@ in-crate signals to use at each stage.
 
 ### 2. Contain
 - **Compromised inference**: rely on `CircuitBreaker`'s automatic halt +
-  rollback (`anima-ck/src/circuit_breaker.rs`); confirm the rollback
+  rollback (`tpt-anima-ck/src/circuit_breaker.rs`); confirm the rollback
   completed and the `ThoughtBubble` was quarantined without halting the
-  scheduler (`anima-ck/src/thought_bubble.rs`).
+  scheduler (`tpt-anima-ck/src/thought_bubble.rs`).
 - **Compromised agent identity**: revoke the agent's `SessionCredential`
   immediately via `SessionManager::revoke_session`; if the agent has
   delegated authority downstream, revoke via
