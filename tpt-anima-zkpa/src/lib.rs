@@ -35,6 +35,7 @@
 //! See `examples/session_and_attestation.rs` for the full walkthrough including
 //! hash-chained liveness heartbeats and the append-only `AgencyLedger`.
 
+#[cfg(feature = "async")]
 pub mod async_proofs;
 pub mod attestation;
 pub mod delegation;
@@ -45,6 +46,7 @@ pub mod proofs;
 pub mod session;
 pub mod types;
 
+#[cfg(feature = "async")]
 pub use async_proofs::{
     AsyncProofGenerator, BatchProofGenerator, ProofCache, ProofData, ProofJob, ProofResult,
     ProofSubmitError,

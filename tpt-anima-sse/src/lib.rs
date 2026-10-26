@@ -31,6 +31,7 @@
 pub mod ann;
 pub mod causal_graph;
 pub mod decay;
+pub mod episode;
 pub mod ledger;
 pub mod mcp;
 pub mod memory_node;
@@ -45,6 +46,7 @@ pub use memory_node::{
 pub use ann::AnnIndex;
 pub use causal_graph::{CausalError, CausalGraph};
 pub use decay::{CollectionStats, MemoryType};
+pub use episode::{EpisodeRecord, EpisodeStore, EpisodeStoreError};
 pub use ledger::{CostBreakdown, CostRates, Ledger};
 pub use mcp::{
     McpAttendTool, McpCausalChainResource, McpContextChainTool, McpMemoryResource,

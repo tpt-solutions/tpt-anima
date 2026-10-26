@@ -15,7 +15,7 @@ serde_json.workspace = true
 uuid.workspace       = true
 sha2.workspace       = true
 thiserror.workspace  = true
-tokio.workspace      = true
+tokio                = { workspace = true, optional = true }
 ark-ff        = "0.5"
 ark-bn254     = "0.5"
 ark-relations = "0.5"
@@ -26,6 +26,11 @@ ark-serialize = "0.5"
 ark-std       = "0.5"
 rand          = "0.8"
 raw-cpuid     = "11"
+
+[features]
+# Tokio-backed async proof pipeline. On by default; disable it to build ZKPA without a runtime.
+default = ["async"]
+async = ["dep:tokio"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 nvml-wrapper = "0.10"
