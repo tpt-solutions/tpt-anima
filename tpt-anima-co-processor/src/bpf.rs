@@ -495,7 +495,7 @@ mod tests {
             EbpfProgram::generate_inference_intercept(),
             EbpfProgram::generate_memory_trace(),
         ] {
-            for chunk in prog.bytecode.chunks_exact(8) {
+            for chunk in prog.bytecode.as_chunks::<8>().0 {
                 assert!(
                     known_opcodes.contains(&chunk[0]),
                     "unexpected opcode byte 0x{:02x} in program {}",
