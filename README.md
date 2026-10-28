@@ -65,6 +65,10 @@ Each core crate ships a self-contained, working example:
 | `tpt-anima-ck` | `cargo run -p tpt-anima-ck --example inference_scheduling` | Attention-weight preemption in the inference scheduler + a `ThoughtBubble` sandbox |
 | `tpt-anima-zkpa` | `cargo run -p tpt-anima-zkpa --example session_and_attestation` | Ephemeral session, real ZK proof generation/verification, hash-chained liveness |
 | `tpt-anima-observatory` | `cargo run -p tpt-anima-observatory --example full_stack_quickstart` | Golden path across all four layers in one request: memory → negotiation → session → thermal budget check |
+| `tpt-anima-co-processor` | `cargo run -p tpt-anima-co-processor --example intercept` | Record an intercepted AI workload and translate it into an INP intent |
+| `tpt-anima-core-hypervisor` | `cargo run -p tpt-anima-core-hypervisor --example boot` | Boot the Tier 1 Core Hypervisor and spawn a legacy-OS VM |
+| `tpt-anima-edge-runtime` | `cargo run -p tpt-anima-edge-runtime --example run` | Store a memory, process an intent, and build a cross-tier envelope for the Core Hypervisor |
+| `tpt-anima-edge-gateway` | `cargo run -p tpt-anima-edge-gateway --example translate` | Translate a native INP intent into MCP and A2A, and back |
 
 ---
 
@@ -122,13 +126,16 @@ For the full walkthrough — deployment tiers, embedding Anima's crates in your 
 |-------|------|
 | `tpt-anima-observatory` | Real-time human telemetry window — translates machine-speed cognition into observable, auditable visualisations |
 | `tpt-anima-edge-gateway` | Lightweight translation layer: native INP ↔ MCP/A2A JSON, preserving internal philosophical purity |
+| `tpt-anima-core-hypervisor` | Tier 1 — Type-1 bare-metal hypervisor for the full stack |
+| `tpt-anima-co-processor` | Tier 2 — eBPF kernel module (Linux) and Windows driver that intercepts AI workloads |
+| `tpt-anima-edge-runtime` | Tier 3 — lightweight SSE + INP for phones, IoT, and browsers |
 
 ---
 
 ## Layer Summaries
 
 ### Layer 1 — Semantic State Engine (SSE)
-The memory substrate. Stores data as unified semantic tensors with native temporal dynamics, causal topology, and multi-modal sensory ingestion. Memories decay organically, reinforce on access, and are linked by causal chains — not flat indices. Exposed to AI agents as `mcp://resources` so agents *attend* rather than query.
+The memory substrate. Stores data as unified semantic tensors with native temporal dynamics, causal topology, and multi-modal sensory ingestion. Memories decay organically, reinforce on access, and are linked by causal chains — not flat indices. An approximate nearest-neighbour index supports semantic search, and an episode store records sequences of memories. Exposed to AI agents as `mcp://resources` so agents *attend* rather than query.
 
 ### Layer 2 — Intent & Negotiation Protocol (INP)
 The nervous system. Agents broadcast goal descriptors; capability providers bid; a state-machine protocol routes intents to the optimal provider with automatic fallback chains. A native micro-economy (Compute Ledger) tracks credits between agents. Natively speaks A2A for cross-network agent collaboration.
@@ -161,7 +168,7 @@ This is Anima's GUI — see [Getting Started](#getting-started) above to run it 
 | **Anima Co-Processor** | Everyday laptops/desktops | eBPF kernel module (Linux) or driver (Windows/macOS); intercepts AI workloads |
 | **Anima Edge** | Phones, IoT, browsers | WebAssembly or native Rust binary; full SSE + INP without hardware control |
 
-A **JIT Hardware-Fluid Engine** detects the available silicon (Apple ANE, NVIDIA CUDA, AMD ROCm, ARM NEON, x86 AVX) and reshapes scheduling logic at install time.
+A **JIT Hardware-Fluid Engine** detects the available silicon (Apple ANE, NVIDIA CUDA, AMD ROCm, ARM NEON, x86 AVX) and reshapes scheduling logic at install time. The Apple ANE backend now emits a CoreML model container, but its execution path is still a stub.
 
 ---
 
@@ -169,7 +176,7 @@ A **JIT Hardware-Fluid Engine** detects the available silicon (Apple ANE, NVIDIA
 
 | Phase | Months | Focus |
 |-------|--------|-------|
-| 0 | — | Project scaffold (this milestone) |
+| 0 | — | Project scaffold |
 | 1 | 1–3 | SSE: memory nodes, temporal decay, causal graph, sensory ingestion |
 | 2 | 4–6 | INP: intent broadcasting, negotiation state machine, Compute Ledger, Edge Gateway |
 | 3 | 7–9 | CK: inference scheduler, circuit breakers, unified memory fabric; ZKPA |
@@ -185,6 +192,7 @@ A **JIT Hardware-Fluid Engine** detects the available silicon (Apple ANE, NVIDIA
 | [docs/API.md](docs/API.md) | API reference across all four layers |
 | [docs/ONBOARDING.md](docs/ONBOARDING.md) | Beta onboarding guide |
 | [DEMO_SCENARIOS.md](DEMO_SCENARIOS.md) | Walkthrough scenarios for demoing the stack end-to-end |
+| [todo.md](todo.md) | Task-level build checklist, phase by phase |
 | [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md) | Detection signals, severity classification, and response procedure per layer |
 | [docs/compliance/SOC2.md](docs/compliance/SOC2.md) | SOC 2 Type II control mapping and certification prep |
 | [docs/compliance/HIPAA.md](docs/compliance/HIPAA.md) | HIPAA technical-safeguards mapping and deployer responsibilities |
