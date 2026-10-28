@@ -134,7 +134,7 @@ async fn handle_socket(mut socket: WebSocket, mut rx: broadcast::Receiver<Broadc
     while let Ok(msg) = rx.recv().await {
         match serde_json::to_string(&msg) {
             Ok(json) => {
-                if socket.send(Message::Text(json)).await.is_err() {
+                if socket.send(Message::Text(json.into())).await.is_err() {
                     break;
                 }
             }
