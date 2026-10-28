@@ -47,7 +47,7 @@ tpt-anima-observatory   — Real-time telemetry backend
 
 The memory substrate. Core type is `MemoryNode`: a vector embedding + raw payload + causal links + temporal decay state + per-node compute ledger. Key design invariants:
 
-- **Memory is attended, not queried.** `InMemoryStorage::attention_retrieve()` ranks by `current_strength`, not cosine similarity. Cosine search (ANN index) is not yet implemented.
+- **Memory is attended, not queried.** `InMemoryStorage::attention_retrieve()` ranks by `current_strength`, not cosine similarity. Cosine search is available separately via `InMemoryStorage::semantic_search()`, backed by the `AnnIndex` in `ann.rs`.
 - **Decay is exponential and real-time.** `apply_decay()` computes `strength *= exp(-rate * Δhours)`. `apply_decay_for(Duration)` is the testable variant (no wall-clock dependency). `record_access()` applies a multiplicative reinforcement boost.
 - **Causal graph is a first-class citizen.** `CausalGraph` is an adjacency list of typed `CausalLink`s (`Caused`, `Preceded`, `PartOf`, `SimilarTo`, `Contradicts`, `Abstracts`). `get_context_chain()` walks backward to ancestors, not just cosine neighbors. `validate_causal_integrity()` detects cycles and contradictions and is called by the CK circuit breaker.
 - **Three memory-type presets** in `decay.rs`: `Episodic` (fast decay, λ=0.05), `Semantic` (slow, λ=0.005), `Procedural` (very slow, λ=0.001).
@@ -67,7 +67,7 @@ The immune system. `SessionCredential` is task-scoped and time-limited — no pe
 
 The brainstem. Fundamental unit of compute is an `Inference`, not a thread. `InferenceScheduler` uses attention-weight preemption (highest-weight inference wins, not round-robin). `MemoryFabric` abstracts VRAM/RAM/NVMe into a single address space with page-in/page-out and predictive prefetch. `CircuitBreaker` monitors output entropy and repetition loops, halting and rolling back inferences that violate causal integrity (integrates with SSE's `validate_causal_integrity()`). `ThoughtBubble` provides cryptographically isolated sandboxes; compromised bubbles are quarantined without halting the scheduler.
 
-`tpt-anima-ck/src/jit/` implements the JIT hardware-fluid engine: hardware detection (`detection.rs`) and backend dispatch (`dispatch.rs`, `backend.rs`) for CUDA/ANE/CPU. The CoreML/ANE backend still emits placeholder bytes (`backend.rs`) — real codegen for that path is the one remaining gap.
+`tpt-anima-ck/src/jit/` implements the JIT hardware-fluid engine: hardware detection (`detection.rs`) and backend dispatch (`dispatch.rs`, `backend.rs`) for CUDA/ANE/CPU. The CoreML/ANE backend emits a real CoreML model container (`coreml.rs`, `build_identity_model`), but its execution path (`AnEBackend::execute`) still returns a stub string — real ANE execution is the remaining gap.
 
 ### Edge Gateway (`tpt-anima-edge-gateway`)
 
