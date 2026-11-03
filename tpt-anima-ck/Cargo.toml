@@ -19,5 +19,5 @@ thiserror.workspace  = true
 raw-cpuid = "11.6"
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
-nvml-wrapper = "0.10"
+nvml-wrapper = "0.13"
 
