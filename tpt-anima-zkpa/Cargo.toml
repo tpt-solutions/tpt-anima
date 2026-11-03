@@ -33,7 +33,7 @@ default = ["async"]
 async = ["dep:tokio"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
-nvml-wrapper = "0.10"
+nvml-wrapper = "0.13"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
