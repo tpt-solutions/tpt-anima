@@ -25,4 +25,4 @@ tpt-anima-edge-runtime = { path = "../tpt-anima-edge-runtime" }
 # it here keeps non-Linux builds (including this Windows dev machine) from ever
 # attempting to compile it.
 [target.'cfg(target_os = "linux")'.dependencies]
-aya = "0.14"
+aya = "0.16"
